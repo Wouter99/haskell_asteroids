@@ -25,11 +25,15 @@ step secs gstate = return $ gstate { elapsedTime = elapsedTime gstate + secs}
 
 -- | Handle user input
 input :: Event -> GameState -> IO GameState
-input e gstate = return (inputKey e gstate)
+input e gstate = return gstate
+  
+  --return (inputKey e gstate)
 
+{-
 inputKey :: Event -> GameState -> GameState
-inputKey (EventKey (Char c) _ _ _) gstate = undefined
+inputKey (EventKey (Char c) _ _ _) gstate = gstate
+-}
     
-     -- If the user presses a character key, show that one
+-- If the user presses a character key, show that one
     --gstate { infoToShow = ShowAChar c }
 --inputKey _ gstate = gstate -- Otherwise keep the same
