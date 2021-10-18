@@ -34,7 +34,7 @@ type Lives = Int
 
 -- initalState willen we random, maar dan moet het een IO GameState worden. Is dat een probleem?
 initialState :: GameState
-initialState = GameState {asteroids = [Asteroid (100,100) 45 20], ship = Ship (300,300) 0 100 30 3, bullets = [], enemies = [Enemy (400,400) 150 Shoot], elapsedTime = 0}
+initialState = GameState {asteroids = [Asteroid (100,100) 45 20], ship = Ship (300,300) 0 100 30 3, bullets = [], enemies = [Enemy (500,500) 45 Shoot], elapsedTime = 0}
 
 -- Main datatypes
 data Ship = Ship Position Speed Direction Size Lives

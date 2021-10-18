@@ -14,6 +14,8 @@ height = 600
 view :: GameState -> IO Picture
 view = return . viewPure
 
+--vertaling van translate is nog niet helemaal correct. uitzoeken hoe dit werkt.
+
 viewPure :: GameState -> Picture
 viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es}) = pictures [picAs as, picShip ship, picBs bs, picEs es] where
   picAs :: [Asteroid] -> Picture
@@ -33,5 +35,5 @@ viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es}) =
   picEs :: [Enemy] -> Picture 
   picEs es = pictures (map f es) where
     f :: Enemy -> Picture
-    f (Enemy (x,y) _ Shoot) = translate (x-0.5*(fromIntegral(width))) (y-0.5*(fromIntegral(height)))  (color (light red) (rectangleSolid 20 20))  --later correcte size kiezen
-    f (Enemy (x,y) _ Follow) = translate (x-0.5*(fromIntegral(width))) (y-0.5*(fromIntegral(height))) (color (dark red) (rectangleSolid 30 30))
+    f (Enemy (x,y) r Shoot) = rotate (fromIntegral(r)) (translate (x-0.5*(fromIntegral(width))) (y-0.5*(fromIntegral(height)))  (color (light red) (rectangleSolid 20 20)))  --later correcte size kiezen
+    f (Enemy (x,y) r Follow) = rotate (fromIntegral(r)) (translate (x-0.5*(fromIntegral(width))) (y-0.5*(fromIntegral(height))) (color (dark red) (rectangleSolid 30 30)))
