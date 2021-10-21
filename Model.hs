@@ -5,8 +5,14 @@ module Model where
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 
-nO_SECS_BETWEEN_CYCLES :: Float
-nO_SECS_BETWEEN_CYCLES = 5
+width :: Int
+width = 800
+
+height :: Int
+height = 600
+
+--nO_SECS_BETWEEN_CYCLES :: Float
+--nO_SECS_BETWEEN_CYCLES = 5
 
 degRad :: Float
 degRad = 0.0174532925
@@ -37,13 +43,11 @@ data Version = Shoot | Follow
 type Lives = Int
 
 -- initalState willen we random, maar dan moet het een IO GameState worden. Is dat een probleem?
-initialState :: GameState
-initialState = GameState {asteroids = [Asteroid (100,100) 45 20], ship = Ship (-50,-50) 5 225 30 3, bullets = [], enemies = [Enemy (150,-100) 45 Shoot], elapsedTime = 0, pressedKeys = []}
 
 -- Main datatypes
 data Ship = Ship Position Speed Direction Size Lives
 
-data Asteroid = Asteroid Position Direction Size
+data Asteroid = Asteroid Position Direction Size  --sizzes zijn 10, 20 of 30. 
 
 data Enemy = Enemy Position Direction Version
 
@@ -57,7 +61,8 @@ class Movable a where
 class Collidable a where
   hitBox :: a -> (Position, Int)
 
---collision :: Collidable a,b => a -> b -> Bool
+--collision :: Collidable a b => a -> b -> Bool
+--collision 
 
 {-  HIER STAAN X EN Y VOOR HET MIDDELPUNT VAN HET OBJECT
 collision a b = (abs(x - x’) < sizex ha hb) && (abs(y - y’) sizey ha hb) -- onder voorbehoud
@@ -96,11 +101,8 @@ instance Collidable Bullet where
 
 --Alle moveables moeten op een torus zitten!
 
-sizeToSpeed :: Size -> Speed
-sizeToSpeed sz = fromIntegral(sz) --later functie vinden die beter werkt
-
 instance Movable Ship where
-  move (Ship pos sp dir sz lives) = Ship (newPos sp pos dir) sp dir sz lives  --miss record structuur?  --miss ander syntax met sinAngle en cosAngle 
+  move (Ship pos sp dir sz lives) = Ship (newPos sp pos dir) sp dir sz lives  
 
 instance Movable Asteroid where
   move (Asteroid pos dir sz) = Asteroid (newPos (sizeToSpeed sz) pos dir) dir sz 
@@ -111,8 +113,8 @@ instance Movable Asteroid where
   -}
 
 instance Movable Enemy where 
-  move (Enemy pos dir Shoot) = Enemy (newPos 20 pos dir) dir Shoot --speed aanpassen
-  move (Enemy pos dir Follow) = Enemy (newPos 20 pos dir) dir Follow --speed aanpassen
+  move (Enemy pos dir Shoot) = Enemy (newPos 3 pos dir) dir Shoot --speed aanpassen
+  move (Enemy pos dir Follow) = Enemy (newPos 5 pos dir) dir Follow --speed aanpassen
 
 instance Movable Bullet where
   move (Bullet pos dir fr) = Bullet (newPos 20 pos dir) dir fr --speed aanpassen
@@ -120,6 +122,9 @@ instance Movable Bullet where
 
 newPos :: Speed -> Position -> Direction -> Position
 newPos sp (x,y) dir = (x+sp*cos(degRad*fromIntegral(dir)), y+sp*sin(degRad*fromIntegral(dir)))
+
+sizeToSpeed :: Size -> Speed
+sizeToSpeed sz = 60/fromIntegral(sz) --later functie vinden die beter werkt
 
 removeItem :: Eq a => a -> [a] -> [a]
 removeItem _ []                 = []
