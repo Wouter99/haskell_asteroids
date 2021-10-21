@@ -23,10 +23,10 @@ viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es}) =
   picAs :: [Asteroid] -> Picture
   picAs as = pictures (map f as) where
     f :: Asteroid -> Picture
-    f (Asteroid (x,y) r sz) = rotate (fromIntegral(r)) (translate x y (color white (circleSolid (fromIntegral(sz))))) --afhankelijk van de grootte van het scherm. omdat translate werkt vanaf de originele positie van de picture en de picture begint in het midden van het scherm.
+    f (Asteroid (x,y) r sz) = translate x y (color white (rotate (fromIntegral(r)) (circleSolid (fromIntegral(sz))))) --afhankelijk van de grootte van het scherm. omdat translate werkt vanaf de originele positie van de picture en de picture begint in het midden van het scherm.
 
   picShip :: Ship -> Picture
-  picShip (Ship (x,y) _ r sz _) = rotate (fromIntegral(r)) (translate x y (color blue (rectangleSolid (0.5*(fromIntegral(sz))) (fromIntegral(sz)))))
+  picShip (Ship (x,y) _ r sz _) = translate x y (color blue (rotate (fromIntegral((-r))) (rectangleSolid (fromIntegral(sz)) (0.5*(fromIntegral(sz))))))
 
   picBs :: [Bullet] -> Picture 
   picBs bs = pictures (map f bs) where

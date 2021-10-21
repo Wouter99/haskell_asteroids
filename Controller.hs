@@ -10,7 +10,17 @@ import System.Random
 
 -- | Handle one iteration of the game
 step :: Float -> GameState -> IO GameState
-step secs gstate = return $ gstate {elapsedTime = elapsedTime gstate + secs}
+
+{- step secs gstate = map changeShip (filter (\k -> (k == Char 'w' || k == Char 'a' || == Char 'd')) (pressedKeys gstate))
+  where changeShip :: Key ->
+        changeShip Char 'w' -}
+
+step secs gstate | (isElement (Char 'w') (pressedKeys gstate) && isElement (Char 'a') (pressedKeys gstate)) = return $ gstate {ship = move(rotateShip (ship gstate) 10), bullets = map move (bullets gstate)}
+                 | (isElement (Char 'w') (pressedKeys gstate) && isElement (Char 'd') (pressedKeys gstate)) = return $ gstate {ship = move(rotateShip (ship gstate) (-10)), bullets = map move (bullets gstate)}   --evt tegelijkertijd
+                 | isElement (Char 'a') (pressedKeys gstate) = return $ gstate {ship = (rotateShip (ship gstate) 10), bullets = map move (bullets gstate)} 
+                 | isElement (Char 'd') (pressedKeys gstate) = return $ gstate {ship = (rotateShip (ship gstate) (-10)), bullets = map move (bullets gstate)} 
+                 | isElement (Char 'w') (pressedKeys gstate) = return $ gstate {ship = move(ship gstate), bullets = map move (bullets gstate)}
+                 | otherwise = return $ gstate {elapsedTime = elapsedTime gstate + secs, bullets = map move (bullets gstate)}
 
 --we willen dat hij alle objecten verplaatst van de gamestate, controleert op collisions, en andere gevolgen daarvan afhandelt.
 
@@ -37,10 +47,16 @@ input e gstate = return (inputKey e gstate)
 
 
 inputKey :: Event -> GameState -> GameState
-inputKey (EventKey (Char c) Down _ _) gstate 
+inputKey (EventKey k Down _ _) gstate = gstate { pressedKeys = k:(pressedKeys gstate)}
+inputKey (EventKey k Up _ _) gstate = gstate {pressedKeys = (removeItem k (pressedKeys gstate))}
+inputKey (EventKey (SpecialKey KeySpace) Down _ _) gstate = gstate {bullets = playerShoot (ship gstate) (bullets gstate) } 
+inputKey _ gstate = gstate 
+
+
+{-
     | c =='w' = gstate{ship = move(ship gstate)}
     | otherwise = gstate
-inputKey _ gstate = gstate
+inputKey _ gstate = gstate -}
 
 
 -- If the user presses the up key, move the ship

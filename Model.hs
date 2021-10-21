@@ -2,6 +2,9 @@
 --   which represent the state of the game
 module Model where
 
+import Graphics.Gloss
+import Graphics.Gloss.Interface.IO.Game
+
 nO_SECS_BETWEEN_CYCLES :: Float
 nO_SECS_BETWEEN_CYCLES = 5
 
@@ -13,7 +16,8 @@ data GameState = GameState{
                            ship::Ship, 
                            bullets::[Bullet],
                            enemies::[Enemy],
-                           elapsedTime :: Float
+                           elapsedTime :: Float,
+                           pressedKeys :: [Key]
                           } 
 
 -- Auxiliary datatypes
@@ -34,7 +38,7 @@ type Lives = Int
 
 -- initalState willen we random, maar dan moet het een IO GameState worden. Is dat een probleem?
 initialState :: GameState
-initialState = GameState {asteroids = [Asteroid (100,100) 45 20], ship = Ship (-50,-50) 10 225 30 3, bullets = [], enemies = [Enemy (150,-100) 45 Shoot], elapsedTime = 0}
+initialState = GameState {asteroids = [Asteroid (100,100) 45 20], ship = Ship (-50,-50) 5 225 30 3, bullets = [], enemies = [Enemy (150,-100) 45 Shoot], elapsedTime = 0, pressedKeys = []}
 
 -- Main datatypes
 data Ship = Ship Position Speed Direction Size Lives
@@ -111,8 +115,24 @@ instance Movable Enemy where
   move (Enemy pos dir Follow) = Enemy (newPos 20 pos dir) dir Follow --speed aanpassen
 
 instance Movable Bullet where
-  move (Bullet pos dir fr) = Bullet (newPos 50 pos dir) dir fr --speed aanpassen
+  move (Bullet pos dir fr) = Bullet (newPos 20 pos dir) dir fr --speed aanpassen
  
 
 newPos :: Speed -> Position -> Direction -> Position
 newPos sp (x,y) dir = (x+sp*cos(degRad*fromIntegral(dir)), y+sp*sin(degRad*fromIntegral(dir)))
+
+removeItem :: Eq a => a -> [a] -> [a]
+removeItem _ []                 = []
+removeItem x (y:ys) | x == y    = removeItem x ys
+                    | otherwise = y : removeItem x ys
+
+isElement :: Eq a => a -> [a] -> Bool
+isElement a [] = False
+isElement a (x:xs) = if a == x then True   --if /else veranderen
+                     else isElement a xs
+
+rotateShip :: Ship -> Direction -> Ship
+rotateShip (Ship pos sp dir sz lives) r = Ship pos sp (dir + r) sz lives
+
+playerShoot :: Ship -> [Bullet] -> [Bullet]
+playerShoot (Ship pos sp dir sz lives) bs = (Bullet pos dir True):bs
