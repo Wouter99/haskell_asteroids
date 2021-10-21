@@ -10,7 +10,7 @@ import System.Random
 
 -- | Handle one iteration of the game
 step :: Float -> GameState -> IO GameState
-step secs gstate = return $ gstate { elapsedTime = elapsedTime gstate + secs}
+step secs gstate = return $ gstate {elapsedTime = elapsedTime gstate + secs}
 
 --we willen dat hij alle objecten verplaatst van de gamestate, controleert op collisions, en andere gevolgen daarvan afhandelt.
 
@@ -23,17 +23,29 @@ step secs gstate = return $ gstate { elapsedTime = elapsedTime gstate + secs}
   = -- Just update the elapsed time
     return $ gstate { elapsedTime = elapsedTime gstate + secs }-}
 
+
+    
+{-data GameState = GameState {
+                   infoToShow  :: InfoToShow
+                 , elapsedTime :: Float
+                 }
+-}
+
 -- | Handle user input
 input :: Event -> GameState -> IO GameState
-input e gstate = return gstate
-  
-  --return (inputKey e gstate)
+input e gstate = return (inputKey e gstate)
 
-{-
+
 inputKey :: Event -> GameState -> GameState
-inputKey (EventKey (Char c) _ _ _) gstate = gstate
--}
-    
--- If the user presses a character key, show that one
-    --gstate { infoToShow = ShowAChar c }
+inputKey (EventKey (Char c) Down _ _) gstate 
+    | c =='w' = gstate{ship = move(ship gstate)}
+    | otherwise = gstate
+inputKey _ gstate = gstate
+
+
+-- If the user presses the up key, move the ship
+--gstate { infoToShow = ShowAChar c }
 --inputKey _ gstate = gstate -- Otherwise keep the same
+
+
+--wat is KeyState: Up/Down?

@@ -34,7 +34,7 @@ type Lives = Int
 
 -- initalState willen we random, maar dan moet het een IO GameState worden. Is dat een probleem?
 initialState :: GameState
-initialState = GameState {asteroids = [Asteroid (100,100) 45 20], ship = Ship (300,300) 0 100 30 3, bullets = [], enemies = [Enemy (500,500) 45 Shoot], elapsedTime = 0}
+initialState = GameState {asteroids = [Asteroid (100,100) 45 20], ship = Ship (-50,-50) 10 225 30 3, bullets = [], enemies = [Enemy (150,-100) 45 Shoot], elapsedTime = 0}
 
 -- Main datatypes
 data Ship = Ship Position Speed Direction Size Lives
@@ -96,7 +96,7 @@ sizeToSpeed :: Size -> Speed
 sizeToSpeed sz = fromIntegral(sz) --later functie vinden die beter werkt
 
 instance Movable Ship where
-  move (Ship pos sp dir sz lives) = Ship (newPos 10 pos dir) sp dir sz lives  --miss record structuur?  --miss ander syntax met sinAngle en cosAngle 
+  move (Ship pos sp dir sz lives) = Ship (newPos sp pos dir) sp dir sz lives  --miss record structuur?  --miss ander syntax met sinAngle en cosAngle 
 
 instance Movable Asteroid where
   move (Asteroid pos dir sz) = Asteroid (newPos (sizeToSpeed sz) pos dir) dir sz 
