@@ -13,25 +13,46 @@ main :: IO ()
 mkAsteroid :: (Float,Float,Int,Int) -> Asteroid
 mkAsteroid (x,y,dir,size) = Asteroid (x,y) dir size
 
-buildInitial :: [(Float,Float,Int,Int)] -> GameState
-buildInitial asvals = GameState {asteroids = map mkAsteroid asvals, ship = Ship (0,0) 5 90 30 3, bullets = [], enemies = [Enemy (150,-100) 45 Shoot], elapsedTime = 0, pressedKeys = []}
+mkEnemy :: (Float,Float,Int,Int) -> Enemy
+mkEnemy (x,y,dir,1) = Enemy (x,y) dir Follow
+mkEnemy (x,y,dir,2) = Enemy (x,y) dir Shoot
 
-main = do randxs <- sequence $ replicate 5 $ randomRIO(-350, 350)
-          randys <- sequence $ replicate 5 $ randomRIO(-250, 250)
-          randDirs <- sequence $ replicate 5 $ randomRIO(0, 360)
-          randInts <- sequence $ replicate 5 $ randomRIO(1,3)
-          let randSizes = map (10*) randInts
-          let asteroidValues = zip4 randxs randys randDirs randSizes
+
+buildInitial :: [(Float,Float,Int,Int)] -> [(Float,Float,Int,Int)] -> GameState
+buildInitial asVals enVals = GameState {asteroids = map mkAsteroid asVals, ship = Ship (0,0) 5 90 30 3, bullets = [], enemies = map mkEnemy enVals , elapsedTime = 0, pressedKeys = []}
+
+main = do posAs <- createRandomPos 5   --creating the random values for asteroids
+          let (xAs, yAs) = unzip posAs 
+          randDirsAs <- createRandomDir 5
+          randIntsAs <- sequence $ replicate 5 $ randomRIO(1,3)
+          let randSizesAs = map (10*) randIntsAs          --all asteroids have sizes 10, 20 or 30
+
+          posEn <-createRandomPos 2  --creating the random values for enemies
+          let (xEn, yEn) = unzip posEn
+          randDirsEn <- createRandomDir 2
+          randVersEn <- sequence $ replicate 2 $ randomRIO(1,2)  --meerdere enemies kunnen later toegevoegd worden
+          
+          let asteroidValues = zip4 xAs yAs randDirsAs randSizesAs
+          let enemyValues = zip4 xEn yEn randDirsEn randVersEn
+          
           playIO (InWindow "Asteroids" (width, height) (0, 0)) -- Or FullScreen
                 black            -- Background color
                 30               -- Frames per second
-                (buildInitial asteroidValues)  -- Initial state
+                (buildInitial asteroidValues enemyValues)  -- Initial state, built with the random values created in Main.
                 view             -- View function
                 input            -- Event function
                 step             -- Step function
 
---beter uitwerken van de random initial gamestate. Lijst van 5 asteroids met random pos, dir, en size. 
 
+createRandomPos :: Int ->  IO [Position]
+createRandomPos n = do randxs <- sequence $ replicate n $ randomRIO((-width) `div` 2 , width `div` 2)
+                       randys <- sequence $ replicate n $ randomRIO((-height) `div` 2, height `div` 2)
+                       return (zip (map fromIntegral randxs) (map fromIntegral randys))
+
+createRandomDir :: Int -> IO (Int)
+createRandomDir n = return (sequence $ replicate n $ randomRIO(0, 360))
+
+--beter uitwerken van de random initial gamestate. Lijst van 5 asteroids met random pos, dir, en size. 
 
 {- 
 TODO LIJSTJE 

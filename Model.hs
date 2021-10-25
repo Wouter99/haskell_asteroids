@@ -58,13 +58,25 @@ data Bullet = Bullet Position Direction Friendly
 class Movable a where
   move :: a -> a
 
-class Collidable a where
+class Collidable a where                    --mogelijk de hitbox functie wegwerken. Niet handig omdat we willen pattern matchen.
   hitBox :: a -> (Position, Int)
 
---collision :: Collidable a b => a -> b -> Bool
---collision 
+collision :: Collidable a b => a -> b -> Bool 
+collision As@(Asteroid pAs _ szAs) Bs@(Bullet pBs _ True) = collideCircCirc (pAs, szAs) (pBs, 5)
+collision (Enemy pEn _ Shoot) (Bullet pBs _ True) = collideCircCirc (pEn, 20) (pBs, 5)
+collision (Enemy pEn _ Follow) (Bullet pBs _ True) = collideCircCirc (pEn, 30) (pBs, 5)   --evt later nog size aanpassen
+collision (Ship _ _ _) (Bullet _ _ False) = False
+collision (Ship _ _ _ _) (Asteroid _ _ _) = False
+collision (Ship _ _ _ _) (Enemy _ _ _) = False
+collision _ _ = False
 
-{-  HIER STAAN X EN Y VOOR HET MIDDELPUNT VAN HET OBJECT
+collideCircCirc :: (Position,Int) -> (Position, Int) -> Bool
+--collision between two circles.
+collideCircCirc ((x1,y1) r1) ((x2,y2) r2) | sqrt((x1-x2)^2+(y1-y2)^2) < (r1+r2) = True
+                                          | otherwise = False
+
+{-
+--HIER STAAN X EN Y VOOR HET MIDDELPUNT VAN HET OBJECT
 collision a b = (abs(x - x’) < sizex ha hb) && (abs(y - y’) sizey ha hb) -- onder voorbehoud
   where ha@((x,y), s) = hitBox a
     hb@((x’,y’), s’) = hitBox b
@@ -77,35 +89,31 @@ collision a b = (abs(x - x’) < sizex ha hb) && (abs(y - y’) sizey ha hb) -- 
 
 instance Collidable Ship where
   hitBox (Ship p _ _ sz _) = (p,sz)
-  {-
-  hitBox (Ship p _ _ Small _) = (p,10)  --later daadwerkelijke size kiezen. wordt eventueel veranderd door powerups
-  hitBox (Ship p _ _ Normal _) = (p,20)
-  hitBox (Ship p _ _ Large _) = (p,30)
-  -}
- 
+  --schip is een rectangle van lengte size en breedte 0.5*size
+
 instance Collidable Asteroid where
   hitBox (Asteroid p _ sz) = (p,sz)
-  {-
-  hitBox (Asteroid p _ Small) = (p,10)  --size aanpasseen
-  hitBox (Asteroid p _ Normal) = (p,20)
-  hitBox (Asteroid p _ Large) = (p,30)
-  -}
+  --asteroid is een cirkel met sz = radius
 
 instance Collidable Enemy where 
-  hitBox (Enemy p _ Shoot) = (p,20)   --later size aanpassen
+  hitBox (Enemy p _ Shoot) = (p,20)   
   hitBox (Enemy p _ Follow) = (p,30)
+
+  --enemy wordt vierkant of circle, zien we later wel
   
 instance Collidable Bullet where
   hitBox (Bullet p _ _) = (p,5) -- later aanpassen size
+  --bullet is cirkel met straal 5
 
 
 --Alle moveables moeten op een torus zitten!
 
+
 instance Movable Ship where
-  move (Ship pos sp dir sz lives) = Ship (newPos sp pos dir) sp dir sz lives  
+  move (Ship pos sp dir sz lives) = Ship (wrap(newPos sp pos dir)) sp dir sz lives  
 
 instance Movable Asteroid where
-  move (Asteroid pos dir sz) = Asteroid (newPos (sizeToSpeed sz) pos dir) dir sz 
+  move (Asteroid pos dir sz) = Asteroid (wrap(newPos (sizeToSpeed sz) pos dir)) dir sz 
   {-
   move (Asteroid pos dir Small) = Asteroid (newPos 30 pos dir) dir Small --speed aanpassen
   move (Asteroid pos dir Normal) = Asteroid (newPos 20 pos dir) dir Normal --speed aanpassen
@@ -113,12 +121,22 @@ instance Movable Asteroid where
   -}
 
 instance Movable Enemy where 
-  move (Enemy pos dir Shoot) = Enemy (newPos 3 pos dir) dir Shoot --speed aanpassen
-  move (Enemy pos dir Follow) = Enemy (newPos 5 pos dir) dir Follow --speed aanpassen
+  move (Enemy pos dir Shoot) = Enemy (wrap(newPos 3 pos dir)) dir Shoot --speed aanpassen
+  move (Enemy pos dir Follow) = Enemy (wrap(newPos 5 pos dir)) dir Follow --speed aanpassen
 
 instance Movable Bullet where
-  move (Bullet pos dir fr) = Bullet (newPos 20 pos dir) dir fr --speed aanpassen
- 
+  move (Bullet pos dir fr) = Bullet (newPos 20 pos dir) dir fr   
+
+trans :: Position -> Position
+trans (x,y) = (x+ (fromIntegral(width)/2) , y + (fromIntegral(height)/2))
+
+transBack :: Position -> Position
+transBack (x,y) = (x- (fromIntegral(width)/2) , y - (fromIntegral(height)/2))
+
+wrap :: Position -> Position
+wrap = transBack . wrap' . trans 
+
+wrap' (x,y) = (fromIntegral((round(x-1) `mod` width) + 1), fromIntegral((round(y-1) `mod` height) + 1))
 
 newPos :: Speed -> Position -> Direction -> Position
 newPos sp (x,y) dir = (x+sp*cos(degRad*fromIntegral(dir)), y+sp*sin(degRad*fromIntegral(dir)))
@@ -141,3 +159,6 @@ rotateShip (Ship pos sp dir sz lives) r = Ship pos sp (dir + r) sz lives
 
 playerShoot :: Ship -> [Bullet] -> [Bullet]
 playerShoot (Ship pos sp dir sz lives) bs = (Bullet pos dir True):bs
+
+enemyShoot :: Enemy -> [Bullet] -> [Bullet]
+enemyShoot (Enemy pos dir _) bs = (Bullet pos dir False):bs

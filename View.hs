@@ -28,5 +28,5 @@ viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es}) =
   picEs :: [Enemy] -> Picture 
   picEs es = pictures (map f es) where
     f :: Enemy -> Picture
-    f (Enemy (x,y) r Shoot) = rotate (fromIntegral(-r)) (translate x y  (color (light red) (rectangleSolid 20 20)))  --later correcte size kiezen
-    f (Enemy (x,y) r Follow) = rotate (fromIntegral(-r)) (translate x y (color (dark red) (rectangleSolid 30 30)))
+    f (Enemy (x,y) r Shoot) = translate x y (color (light red) (rotate (fromIntegral(-r)) (circleSolid (fromIntegral(20)))))  --later correcte size kiezen
+    f (Enemy (x,y) r Follow) = translate x y (color (dark red) (rotate (fromIntegral(-r)) (circleSolid (fromIntegral(30)))))
