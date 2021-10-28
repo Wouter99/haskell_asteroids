@@ -21,16 +21,16 @@ mkEnemy (x,y,dir,2) = Enemy (x,y) dir Shoot
 buildInitial :: [(Float,Float,Int,Int)] -> [(Float,Float,Int,Int)] -> GameState
 buildInitial asVals enVals = GameState {asteroids = map mkAsteroid asVals, ship = Ship (0,0) 5 90 30 3, bullets = [], enemies = map mkEnemy enVals , elapsedTime = 0, pressedKeys = []}
 
-main = do posAs <- createRandomPos 5   --creating the random values for asteroids
+main = do posAs <- createRandomPos 1   --creating the random values for asteroids
           let (xAs, yAs) = unzip posAs 
-          randDirsAs <- createRandomDir 5
-          randIntsAs <- sequence $ replicate 5 $ randomRIO(1,3)
+          randDirsAs <- createRandomDir 1
+          randIntsAs <- sequence $ replicate 1 $ randomRIO(1,3)
           let randSizesAs = map (10*) randIntsAs          --all asteroids have sizes 10, 20 or 30
 
-          posEn <-createRandomPos 2  --creating the random values for enemies
+          posEn <-createRandomPos 1 --creating the random values for enemies
           let (xEn, yEn) = unzip posEn
-          randDirsEn <- createRandomDir 2
-          randVersEn <- sequence $ replicate 2 $ randomRIO(1,2)  --meerdere enemies kunnen later toegevoegd worden
+          randDirsEn <- createRandomDir 1
+          randVersEn <- sequence $ replicate 1 $ randomRIO(1,2)  --meerdere enemies kunnen later toegevoegd worden
           
           let asteroidValues = zip4 xAs yAs randDirsAs randSizesAs
           let enemyValues = zip4 xEn yEn randDirsEn randVersEn
@@ -49,8 +49,8 @@ createRandomPos n = do randxs <- sequence $ replicate n $ randomRIO((-width) `di
                        randys <- sequence $ replicate n $ randomRIO((-height) `div` 2, height `div` 2)
                        return (zip (map fromIntegral randxs) (map fromIntegral randys))
 
-createRandomDir :: Int -> IO (Int)
-createRandomDir n = return (sequence $ replicate n $ randomRIO(0, 360))
+createRandomDir :: Int -> IO [Int]
+createRandomDir n = (sequence $ replicate n $ randomRIO(0, 360))
 
 --beter uitwerken van de random initial gamestate. Lijst van 5 asteroids met random pos, dir, en size. 
 
