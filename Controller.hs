@@ -49,36 +49,43 @@ collisions as ship bs es = (as'', ship''', bs',es'')
 
     
 bulletChecker :: [Asteroid] -> Ship -> [Bullet] -> [Enemy] -> ([Asteroid], Ship, [Bullet], [Enemy])
-bulletChecker [] ship bs es = ([], ship, bs, es)
-bulletChecker as ship bs [] = (as, ship, bs, [])
-bulletChecker (a:as) ship bs (e:es) = ((as'++asr), shipr, bsr, esr)
-  where (as', bs') = bulletAsChecker a bs
-        (asr, shipr, bsr, esr) = bulletChecker as ship bs' (e:es)
-  
-
-{-
-   ((as'++as''), ship'', bs'', es)
-  where (as' ,ship',bs',es') = (bulletChecker' a ship bs e)
-        (as'', ship'', bs'',es'') = (bulletChecker as ship' bs' es)
--}
+bulletChecker as ship bs es = (as', ship', bs''', es')
+  where (as', bs') = bulletAsChecker as bs
+        (es', bs'') = bulletEnChecker es bs'
+        (ship', bs''') = bulletShipChecker ship bs''
 
 
-bulletEnChecker :: Enemy -> [Bullet] -> ([Enemy], [Bullet])
+bulletEnChecker :: [Enemy] -> [Bullet] -> ([Enemy], [Bullet])
+bulletEnChecker [] bs = ([], bs)
+bulletEnChecker (e:es) bs = ((es'++esr), bsr)
+  where (es', bs') = bulletEnChecker' e bs
+        (esr, bsr) = bulletEnChecker es bs'
+
+bulletEnChecker' :: Enemy -> [Bullet] -> ([Enemy], [Bullet])
 --Als bullets leeg zijn dan klaar
-bulletEnChecker e [] = ([e], [])  
-bulletEnChecker e (b:bs) | collision e b = ([], bs)
-                         | otherwise = let (es', bs') = (bulletEnChecker e bs) in (es', (b:bs'))
+bulletEnChecker' e [] = ([e], [])  
+bulletEnChecker' e (b:bs) | collision e b = ([], bs)
+                          | otherwise = let (es', bs') = (bulletEnChecker' e bs) in (es', (b:bs'))
 
-bulletAsChecker :: Asteroid -> [Bullet] -> ([Asteroid], [Bullet])
+
+
+bulletAsChecker :: [Asteroid] -> [Bullet] -> ([Asteroid], [Bullet])
+bulletAsChecker [] bs = ([], bs)
+bulletAsChecker (a:as) bs = ((as'++asr), bsr)
+  where (as', bs') = bulletAsChecker' a bs
+        (asr, bsr) = bulletAsChecker as bs'
+
+bulletAsChecker':: Asteroid -> [Bullet] -> ([Asteroid], [Bullet])
 --Als bullets leeg zijn dan klaar
-bulletAsChecker a [] = ([a], [])  
-bulletAsChecker a (b:bs) | collision a b = (destroyAs(a), bs)
-                         | otherwise = let (as', bs') = (bulletAsChecker a bs) in (as', (b:bs'))
+bulletAsChecker' a [] = ([a], [])  
+bulletAsChecker' a (b:bs) | collision a b = (destroyAs(a), bs)
+                          | otherwise = let (as', bs') = (bulletAsChecker' a bs) in (as', (b:bs'))
+
 
 bulletShipChecker :: Ship -> [Bullet] -> (Ship, [Bullet])
 bulletShipChecker ship [] = (ship, [])
 bulletShipChecker ship (b:bs) | collision ship b = ((shipDeath(ship), bs))  
-                              | otherwise = bulletShipChecker ship bs
+                              | otherwise = let (ship', bs') = (bulletShipChecker ship bs) in (ship', b:bs')
 
 asteroidChecker :: [Asteroid] -> Ship -> ([Asteroid], Ship)
 asteroidChecker [] ship = ([], ship)
@@ -122,32 +129,3 @@ inputKey (EventKey k Up _ _) gstate = gstate {pressedKeys = (removeItem k (press
 inputKey _ gstate = gstate 
 
 
-{-
-    | c =='w' = gstate{ship = move(ship gstate)}
-    | otherwise = gstate
-inputKey _ gstate = gstate -}
-
-
--- If the user presses the up key, move the ship
---gstate { infoToShow = ShowAChar c }
---inputKey _ gstate = gstate -- Otherwise keep the same
-
-
---wat is KeyState: Up/Down?
-
-{-}
---Als Asteroids én enemies op zijn
-bulletChecker' [] ship (b:bs) [] | collision ship b = bulletChecker' [] (shipDeath(ship)) bs []                                                
-                                 | otherwise = let (as', ship', bs', es') = (bulletChecker' [] ship bs []) in (as', ship', (b:bs'), es')
-
---Als alleen enemies op zijn stop dan met checken voor die collisions
-bulletChecker' a ship (b:bs) [] | collision ship b = bulletChecker' a (shipDeath(ship)) bs []       
-                                | collision a b = ((destroyAs(a)), ship, bs, [])        --OPLETTEN DAT DIT ALLEEN SHIP BULLETS ZIJN
-                                | otherwise = let (as', ship', bs', es') = (bulletChecker' a ship bs []) in (as', ship', (b:bs'), es')
-
-
---Als alleen asteroids op zijn stop dan met checken voor die collisions
-bulletChecker' [] ship (b:bs) e | collision ship b = bulletChecker' [] (shipDeath(ship)) bs e       
-                                | collision e b = ([], ship, bs, [])
-                                | otherwise = let (as', ship', bs', es') = (bulletChecker' [] ship bs e) in (as', ship', (b:bs'), es')
--}
