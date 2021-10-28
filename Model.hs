@@ -84,8 +84,6 @@ collision a b = (abs(x - x’) < sizex ha hb) && (abs(y - y’) sizey ha hb) -- 
                                    | otherwise = s’ 
     sizey ((x,y), s) ((x’,y’), s’) | y>y’ = s
                                    | otherwise = s’ 
--}
-
 
 instance Collidable Ship where
   hitBox (Ship p _ _ sz _) = (p,sz)
@@ -104,9 +102,7 @@ instance Collidable Enemy where
 instance Collidable Bullet where
   hitBox (Bullet p _ _) = (p,5) -- later aanpassen size
   --bullet is cirkel met straal 5
-
-
---Alle moveables moeten op een torus zitten!
+-}
 
 
 instance Movable Ship where
@@ -114,11 +110,6 @@ instance Movable Ship where
 
 instance Movable Asteroid where
   move (Asteroid pos dir sz) = Asteroid (wrap(newPos (sizeToSpeed sz) pos dir)) dir sz 
-  {-
-  move (Asteroid pos dir Small) = Asteroid (newPos 30 pos dir) dir Small --speed aanpassen
-  move (Asteroid pos dir Normal) = Asteroid (newPos 20 pos dir) dir Normal --speed aanpassen
-  move (Asteroid pos dir Large) = Asteroid (newPos 10 pos dir)  dir Large --speed aanpassen
-  -}
 
 instance Movable Enemy where 
   move (Enemy pos dir Shoot) = Enemy (wrap(newPos 3 pos dir)) dir Shoot --speed aanpassen
@@ -127,22 +118,29 @@ instance Movable Enemy where
 instance Movable Bullet where
   move (Bullet pos dir fr) = Bullet (newPos 20 pos dir) dir fr   
 
-trans :: Position -> Position
-trans (x,y) = (x+ (fromIntegral(width)/2) , y + (fromIntegral(height)/2))
+------------------
+--helper functions for move implementation
+------------------
 
-transBack :: Position -> Position
-transBack (x,y) = (x- (fromIntegral(width)/2) , y - (fromIntegral(height)/2))
-
-wrap :: Position -> Position
+wrap :: Position -> Position   --uses trans and transBack to translate to a coordinatie system with the origin in the bottom left corner instead of in the middle, wrap the position like a torus, and translate back.
 wrap = transBack . wrap' . trans 
-
 wrap' (x,y) = (fromIntegral((round(x-1) `mod` width) + 1), fromIntegral((round(y-1) `mod` height) + 1))
+  where
+    trans (x,y) = (x+ (fromIntegral(width)/2) , y + (fromIntegral(height)/2))
+    transBack (x,y) = (x- (fromIntegral(width)/2) , y - (fromIntegral(height)/2))
 
 newPos :: Speed -> Position -> Direction -> Position
 newPos sp (x,y) dir = (x+sp*cos(degRad*fromIntegral(dir)), y+sp*sin(degRad*fromIntegral(dir)))
 
 sizeToSpeed :: Size -> Speed
 sizeToSpeed sz = 60/fromIntegral(sz) --later functie vinden die beter werkt
+
+moveBack :: Ship -> Ship
+moveBack (Ship (x,y) sp dir sz lives) = Ship (wrap((x-sp*cos(degRad*fromIntegral(dir)), y-sp*sin(degRad*fromIntegral(dir))))) sp dir sz lives
+
+-----------------------
+--helper functions for handling user input in the controller
+-----------------------
 
 removeItem :: Eq a => a -> [a] -> [a]
 removeItem _ []                 = []
@@ -151,8 +149,8 @@ removeItem x (y:ys) | x == y    = removeItem x ys
 
 isElement :: Eq a => a -> [a] -> Bool
 isElement a [] = False
-isElement a (x:xs) = if a == x then True   --if /else veranderen
-                     else isElement a xs
+isElement a (x:xs) | a == x = True   
+                   | otherwise = isElement a xs
 
 rotateShip :: Ship -> Direction -> Ship
 rotateShip (Ship pos sp dir sz lives) r = Ship pos sp (dir + r) sz lives
@@ -162,3 +160,20 @@ playerShoot (Ship pos sp dir sz lives) bs = (Bullet pos dir True):bs
 
 enemyShoot :: Enemy -> [Bullet] -> [Bullet]
 enemyShoot (Enemy pos dir _) bs = (Bullet pos dir False):bs
+
+--------------------------------
+--helper functions to update the gamestate
+--------------------------------
+
+moveAll :: GameState -> GameState
+moveAll gstate = gstate {bullets = map move (bullets gstate), asteroids = map move (asteroids gstate), enemies = map move (enemies gstate), elapsedTime = (elapsedTime gstate) + secs}
+    
+checkCollisions :: GameState -> GameState 
+checkCollisions (Gamestate as ship bs es time keys) = Gamestate as' ship' bs' es' time keys          
+    where      
+    (as', ship', bs', es') = collisions as ship bs es
+
+collisions :: [Asteroid] -> Ship -> [Bullet] -> [Enemy] -> ([Asteroid], Ship, [Bullet], [Enemy]) 
+collisions a:as ship@(Ship pos sp dir sz lv) b:bs e:es | collision a ship = collisions destroyAs(a):as (Ship pos sp dir sz (lv-1)) b:bs e:es
+                                                                 
+destroyAs :: Asteroid -> [Asteroid]

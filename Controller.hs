@@ -12,28 +12,21 @@ import System.Random
 step :: Float -> GameState -> IO GameState
 step secs gstate | (isElement (Char 'w') (pressedKeys gstate) && isElement (Char 'a') (pressedKeys gstate)) = return $ gstate' {ship = move(rotateShip (ship gstate) 8)}  --miss nog achteruit kunnen bewegen?
                  | (isElement (Char 'w') (pressedKeys gstate) && isElement (Char 'd') (pressedKeys gstate)) = return $ gstate' {ship = move(rotateShip (ship gstate) (-8))}   --evt tegelijkertijd
+                 | isElement (Char 'w') (pressedKeys gstate) = return $ gstate' {ship = move(ship gstate)}
+                 {-  Willen we kunnen draaien bij achteruit beweging?
+                 | (isElement (Char 's') (pressedKeys gstate) && isElement (Char 'a') (pressedKeys gstate)) = return $ gstate' {ship = moveBack(rotateShip (ship gstate) 8)}  
+                 | (isElement (Char 's') (pressedKeys gstate) && isElement (Char 'd') (pressedKeys gstate)) = return $ gstate' {ship = moveBack(rotateShip (ship gstate) (-8))}
+                 -}  
+                 | isElement (Char 's') (pressedKeys gstate) = return $ gstate' {ship = moveBack(ship gstate)}
                  | isElement (Char 'a') (pressedKeys gstate) = return $ gstate' {ship = (rotateShip (ship gstate) 8)}
                  | isElement (Char 'd') (pressedKeys gstate) = return $ gstate' {ship = (rotateShip (ship gstate) (-8))}
-                 | isElement (Char 'w') (pressedKeys gstate) = return $ gstate' {ship = move(ship gstate)}
                  | otherwise = return $ gstate'
     where gstate' = update gstate
                 
---we willen dat hij alle objecten verplaatst van de gamestate, controleert op collisions, en andere gevolgen daarvan afhandelt.
+--we willen dat de update functie alle objecten verplaatst van de gamestate, controleert op collisions, en andere gevolgen daarvan afhandelt.
 update :: GameState -> GameState
 update gstate =  checkCollisions (moveAll gstate)
 
-    where moveAll :: GameState -> GameState
-          moveAll gstate = gstate {bullets = map move (bullets gstate), asteroids = map move (asteroids gstate), enemies = map move (enemies gstate), elapsedTime = (elapsedTime gstate) + secs}
-         
-          checkCollisions (Gamestate as ship bs es _ _) = Gamestate as' ship' bs' es'               --(checkAs as ship bs es) (checkShip ship as bs es) (checkBs as ship es) (checkEs as ship bs)
-          
-          (as', ship', bs', es') = collisions as ship bs es
-
-          collisions :: [Asteroid] -> Ship -> [Bullet] -> [Enemy] -> ([Asteroid], Ship, [Bullet], [Enemy]) 
-          collisions a:as ship@(Ship pos sp dir sz lv) b:bs e:es | collision a ship = collisions smaller(a):as (Ship pos sp dir sz (lv-1)) b:bs e:es
-                                                                 
-                                                                  
-          smaller :: Asteroid -> [Asteroid]        
 -- | Handle user input
 input :: Event -> GameState -> IO GameState
 input e gstate = return (inputKey e gstate)
