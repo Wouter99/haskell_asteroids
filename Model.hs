@@ -107,11 +107,6 @@ instance Movable Asteroid where
 instance Movable Bullet where
   move (Bullet pos dir fr) = Bullet (newPos 20 pos dir) dir fr   
 
-moveEnemy :: Ship -> Enemy -> Enemy  --Aparte move functie voor de enemy omdat deze het extra argument schip nodig heeft om de nieuwe richting te bepalen
-moveEnemy _ (Enemy pos dir Shoot)= Enemy (wrap(newPos 3 pos dir)) dir Shoot --speed aanpassen
-moveEnemy (Ship (a,b) _ _ _ _) (Enemy (x,y) dir Follow) = Enemy (wrap(newPos 1 (x,y) dirPlayer)) dirPlayer Follow --speed aanpassen
-    where 
-      dirPlayer = ((atan2 (y-b) (x-a))*radDeg)+180 --atan2 calculates the angle between vector and x -axis, this is translated to degree in range 0 to 360. 
 ------------------
 --helper functions for move implementation
 ------------------
@@ -127,10 +122,21 @@ newPos :: Speed -> Position -> Direction -> Position
 newPos sp (x,y) dir = (x+sp*cos(degRad*dir), y+sp*sin(degRad*dir))
 
 sizeToSpeed :: Size -> Speed
-sizeToSpeed sz = 60/sz --later functie vinden die beter werkt
+sizeToSpeed 60 = 1
+sizeToSpeed 35 = 2.5
+sizeToSpeed 15 = 4 --later functie vinden die beter werkt
 
 moveBack :: Ship -> Ship
 moveBack (Ship (x,y) sp dir sz lives) = Ship (wrap((x-sp*cos(degRad*dir), y-sp*sin(degRad*dir)))) sp dir sz lives
+
+moveEnemy :: Ship -> Enemy -> Enemy  --Aparte move functie voor de enemy omdat deze het extra argument schip nodig heeft om de nieuwe richting te bepalen
+moveEnemy _ (Enemy (x1,y1) dir Shoot)= Enemy (wrap(newPos 3 (x1,y1) dirRand)) dirRand Shoot --speed aanpassen
+  where
+    dirRand = dir+ 0.01*(fromIntegral((round(x1 + y1)) `rem` 51))
+moveEnemy (Ship (a,b) _ _ _ _) (Enemy (x2,y2) dir Follow) = Enemy (wrap(newPos 4 (x2,y2) dirPlayer)) dirPlayer Follow --speed aanpassen
+  where 
+    dirPlayer = ((atan2 (y2-b) (x2-a))*radDeg)+180 --atan2 calculates the angle between vector and x -axis, this is translated to degree in range 0 to 360. 
+
 
 -----------------------
 --helper functions for handling user input in the controller
@@ -152,15 +158,20 @@ rotateShip (Ship pos sp dir sz lives) r = Ship pos sp (dir + r) sz lives
 playerShoot :: Ship -> [Bullet] -> [Bullet]
 playerShoot (Ship pos sp dir sz lives) bs = (Bullet pos dir True):bs
 
-enemyShoot :: Enemy -> [Bullet] -> [Bullet]
-enemyShoot (Enemy pos dir _) bs = (Bullet pos dir False):bs
-
-----------------------
+enemyShoot :: GameState -> Enemy -> [Bullet]
+enemyShoot gstate (Enemy (x,y) dir Shoot) | ((round(time*1000) `mod` 3000) == 0) = [Bullet (x,y) dirPlayer False]   --Enemies van type Shoot schieten elke 3 sec voor een duizendste van een seconde, wat neerkomt op 1 bullet. 
+                                          | otherwise = []                                  
+  where 
+    time = (elapsedTime gstate)
+    (Ship (a,b) _ _ _ _) = (ship gstate)
+    dirPlayer = ((atan2 (y-b) (x-a))*radDeg)+180 --atan2 calculates the angle between vector and x -axis, this is translated to degree in range 0 to 360. 
+enemyShoot _ _ = []    --alle andere enemies schieten niet
+---------------------- 
 --helper functions for building a random GameState
 ----------------------
 
-mkAsteroid :: (Float,Float,Float,Float) -> Asteroid
-mkAsteroid (x,y,dir,size) = Asteroid (x,y) dir size
+mkAsteroid :: (Float,Float,Float) -> Asteroid
+mkAsteroid (x,y,dir) = Asteroid (x,y) dir 60
 
 mkEnemy :: (Float,Float,Float,Int) -> Enemy --more versions can be added
 mkEnemy (x,y,dir,1) = Enemy (x,y) dir Follow
@@ -170,14 +181,19 @@ buildInitial :: [Asteroid] -> [Enemy] -> GameState
 buildInitial as es = GameState {asteroids = as, ship = Ship (0,0) 8 90 50 3, bullets = [], enemies = es, elapsedTime = 0, pressedKeys = [], onScreen = (0,False, False)}
 
 mkAsteroids :: Int -> IO [Asteroid]
-mkAsteroids n = do posAs <- createRandomPos n  
+mkAsteroids 0 = return []
+mkAsteroids n = do posAs <- createRandomPos n     
                    let (xAs,yAs) = unzip posAs
                    randDirsAs <- createRandomDir n
-                   randIntsAs <- createRandomInts n
-                   let randSizesAs = map (fromIntegral.(10*)) randIntsAs          --all asteroids have sizes 10, 20 or 30
-                   return (map mkAsteroid (zip4 xAs yAs randDirsAs randSizesAs))
+                   return (map mkAsteroid (zip3 xAs yAs randDirsAs))
+
+{-                 randIntsAs <- createRandomInts n
+                   let randSizesAs = map (fromIntegral.(10*)) randIntsAs         
+                   createRandomInts :: Int -> IO [Int]
+                   createRandomInts n = (sequence $ replicate n $ randomRIO(1,3)) -}
 
 mkEnemies :: Int -> IO [Enemy]
+mkEnemies 0 = return []
 mkEnemies n = do posEn <-createRandomPos n 
                  let (xEn, yEn) = unzip posEn
                  randDirsEn <- createRandomDir n
@@ -185,21 +201,43 @@ mkEnemies n = do posEn <-createRandomPos n
                  return (map mkEnemy (zip4 xEn yEn randDirsEn randVersEn))
 
 createRandomPos :: Int ->  IO [Position]
-createRandomPos n = do randxs <- sequence $ replicate n $ randomRIO((-width) `div` 2 , width `div` 2)
-                       randys <- sequence $ replicate n $ randomRIO((-height) `div` 2, height `div` 2)
-                       return (zip (map fromIntegral randxs) (map fromIntegral randys))
+createRandomPos n = sequence $ replicate n $ randomPos
+                         
+randomPos :: IO Position
+randomPos = do edge <- randomRIO(1,4)
+               posOnEdge edge
+
+posOnEdge :: Int -> IO Position -- 1 is noord, 2 is oost, 3 is zuid, 4 is west
+posOnEdge 1 = do randx <- randomRIO((-fromIntegral(width))/2, (fromIntegral(width))/2) :: IO Float
+                 return (randx,0.5*(fromIntegral(height)))
+posOnEdge 2 = do randy <- randomRIO((-fromIntegral(height))/2, (fromIntegral(height))/2) :: IO Float
+                 return (0.5*fromIntegral(width), randy)
+posOnEdge 3 = do randx <- randomRIO((-fromIntegral(width))/2, (fromIntegral(width))/2) :: IO Float
+                 return (randx,-0.5*(fromIntegral(height)))
+posOnEdge 4 = do randy <- randomRIO((-fromIntegral(height))/2, (fromIntegral(height))/2) :: IO Float
+                 return (-0.5*fromIntegral(width), randy)
+posOnEdge _ = error "not an edge"
+
+{-
+    where createRandomPos n = do randxs <- sequence $ replicate n $ randomRIO((-width) `div` 2 , width `div` 2)
+                                 randys <- sequence $ replicate n $ randomRIO((-height) `div` 2, height `div` 2)
+                                 return (zip (map fromIntegral randxs) (map fromIntegral randys))
+-}
 
 createRandomDir :: Int -> IO [Float]
 createRandomDir n = (sequence $ replicate n $ randomRIO(0, 360))
 
-createRandomInts :: Int -> IO [Int]
-createRandomInts n = (sequence $ replicate n $ randomRIO(1,3)) 
 
 --------------------------------
 --Functions to update the gamestate
 --------------------------------
 update :: GameState -> GameState
-update gstate =  handleCollisions (moveAll gstate)
+update gstate = handleCollisions $ moveAll $ shootAll gstate
+
+shootAll :: GameState -> GameState
+shootAll gstate = gstate {bullets = ((bullets gstate) ++ concatMap f (enemies gstate))}
+  where f :: Enemy -> [Bullet]
+        f = enemyShoot gstate
 
 moveAll :: GameState -> GameState
 moveAll gstate = gstate {bullets = map move (bullets gstate), asteroids = map move (asteroids gstate), enemies = map (moveEnemy (ship gstate)) (enemies gstate)}
@@ -236,21 +274,6 @@ bulletChecker' x (b@(Bullet _ _ True):bs) sc | collision x b = (destroy(x), bs,s
                                              | otherwise = let (xs', bs',sc') = (bulletChecker' x bs sc) in (xs', (b:bs'), sc')
 bulletChecker' x (b@(Bullet _ _ False):bs) sc = let (xs', bs', sc') = (bulletChecker' x bs sc) in (xs', (b:bs'), sc')
 
-{-
-bulletAsChecker :: [Asteroid] -> [Bullet] -> ([Asteroid], [Bullet])
-bulletAsChecker [] bs     = ([], bs)
-bulletAsChecker (a:as) bs = ((as'++asr), bsr)
-  where (as', bs') = bulletAsChecker' a bs
-        (asr, bsr) = bulletAsChecker as bs'
-
-bulletAsChecker':: Asteroid -> [Bullet] -> ([Asteroid], [Bullet])
---Als bullets leeg zijn dan klaar
-bulletAsChecker' a [] = ([a], [])  
-bulletAsChecker' a (b@(Bullet _ _ True):bs) | collision a b = (destroyAs(a), bs)
-                                          | otherwise = let (as', bs') = (bulletAsChecker' a bs) in (as', (b:bs'))
-bulletAsChecker' a (b@(Bullet _ _ False):bs) = let (as', bs') = (bulletAsChecker' a bs) in (as', (b:bs'))                               
--}
-
 bulletShipChecker :: Ship -> [Bullet] -> (Ship, [Bullet])
 bulletShipChecker ship [] = (ship, [])
 bulletShipChecker ship (b@(Bullet _ _ False):bs) | collision ship b = ((shipDeath(ship), bs))  
@@ -273,9 +296,9 @@ shipDeath (Ship pos sp dir sz 0) = Ship (10000,0) sp dir sz 0
 shipDeath (Ship pos sp dir sz lv) = Ship (0,0) sp dir sz (lv-1) 
 
 destroyAs :: Asteroid -> [Asteroid]
-destroyAs (Asteroid pos dir 10) = []
-destroyAs (Asteroid pos dir 20) = [(Asteroid pos (dir+25) 10), (Asteroid pos (dir-25) 10)]
-destroyAs (Asteroid pos dir 30) = [(Asteroid pos (dir+25) 20), (Asteroid pos (dir-25) 20)]
+destroyAs (Asteroid pos dir 15) = []
+destroyAs (Asteroid pos dir 35) = [(Asteroid pos (dir+40) 15), (Asteroid pos (dir-40) 15)]
+destroyAs (Asteroid pos dir 60) = [(Asteroid pos (dir+40) 35), (Asteroid pos (dir-40) 35)]
 
 collision :: (Collidable a, Collidable b) => a -> b -> Bool 
 collision a b = collide (hitBox(a)) (hitBox(b))
