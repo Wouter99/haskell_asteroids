@@ -10,14 +10,21 @@ view = return . viewPure
 
 
 viewPure :: GameState -> Picture
-viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es, onScreen = info}) = pictures [picAs as, picShip ship, picBs bs, picEs es, picInfo ship info] where
+viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es, onScreen = info, elapsedTime = time}) = pictures [picAs as, picShip ship, picBs bs, picEs es, picInfo ship info, picExplosion time ship] where
   picAs :: [Asteroid] -> Picture
   picAs as = pictures (map f as) where
     f :: Asteroid -> Picture
     f (Asteroid (x,y) r sz) = translate x y (color white (rotate (-r) (circleSolid (sz)))) --afhankelijk van de grootte van het scherm. omdat translate werkt vanaf de originele positie van de picture en de picture begint in het midden van het scherm.
 
   picShip :: Ship -> Picture
-  picShip (Ship (x,y) _ r sz _) = translate x y (color blue (rotate (-r) (rectangleSolid (sz) (0.5*sz))))
+  picShip (Ship (x,y) _ r sz _ _) = translate x y (color blue (rotate (-r) (rectangleSolid (sz) (0.5*sz))))
+
+  picExplosion :: Float -> Ship -> Picture
+  picExplosion _ (Ship _ _ _ _ _ None) = Blank
+  picExplosion totalTime (Ship _ _ _ _ _ (Explosion (x,y) creationTime)) | (duration < 0.3) = Pictures [translate x y (color orange (circleSolid (160*duration))), translate x y (color yellow (circleSolid (120*duration))), translate x y (color white (circleSolid (80*duration)))]
+                                                                         | otherwise = Pictures [translate x y (color orange (circleSolid (1.6/(1000*duration)))), translate x y (color orange (circleSolid (1.2/(1000*duration)))), translate x y (color orange (circleSolid (0.8/(1000*duration))))]
+    where duration = totalTime - creationTime
+
 
   picBs :: [Bullet] -> Picture 
   picBs bs = pictures (map f bs) where
@@ -34,4 +41,4 @@ viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es, on
   picInfo :: Ship -> (Score, Pause, GameOver) -> Picture
   picInfo _ (score,_,True) = Pictures [translate (-0.49*(fromIntegral(width))) 0 (scale 1.5 1.5 (color (white) (text "GAME OVER"))), translate (-0.42*(fromIntegral(width))) (-200) (scale 0.5 0.5 (color (white) (text "press R to restart"))), translate (-0.42*(fromIntegral(width))) (-300) (scale 0.5 0.5 (color (white) (text ("You scored "++(show(score))++" points" ))))]
   picInfo _ (_,True,_) = translate (-0.42*(fromIntegral(width))) 0 (scale 2 2 (color (white) (text "PAUSED")))
-  picInfo (Ship _ _ _ _ lives) (score, False,_) = Pictures [translate (-0.5*(fromIntegral(width))+20) (0.5*(fromIntegral(height))-50) (scale 0.4 0.4 (color (white) (text ("Score: "++(show score))))), translate (-0.5*(fromIntegral(width))+20) (0.5*(fromIntegral(height))-100) (scale 0.4 0.4 (color (white) (text ("Lives: "++(show lives)))))]
+  picInfo (Ship _ _ _ _ lives _) (score, False,_) = Pictures [translate (-0.5*(fromIntegral(width))+20) (0.5*(fromIntegral(height))-50) (scale 0.4 0.4 (color (white) (text ("Score: "++(show score))))), translate (-0.5*(fromIntegral(width))+20) (0.5*(fromIntegral(height))-100) (scale 0.4 0.4 (color (white) (text ("Lives: "++(show lives)))))]

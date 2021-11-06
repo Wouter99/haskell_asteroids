@@ -12,14 +12,22 @@ import System.Random
 step :: Float -> GameState -> IO GameState
 step secs gstate = do gstate' <- reloadState gstate
                       gstate''<- randomSpawner (elapsedTime gstate) $ moveShip $ updateState secs gstate'
-                      return $ pauseGameOver gstate gstate''
+                      pauseGameOver gstate gstate''
                       
-pauseGameOver :: GameState -> GameState -> GameState
-pauseGameOver oGstate gstate | (lives == 0) = oGstate{onScreen = (score, False, True), asteroids = [], enemies = [], bullets =[], ship = (shipDeath(ship gstate))}  --Game Over when running out of lives
-                             | paused = oGstate  --if paused this returns the original state that isn't updated
-                             | otherwise = gstate
+pauseGameOver :: GameState -> GameState -> IO GameState
+pauseGameOver oGstate gstate | (lives == 0) = do hsc <- readFile "highscore.txt" 
+                                                 putStrLn hsc
+                                                 let highscore = read hsc
+                                                 writeFile "highscore.txt" (newScore highscore score)
+                                                 return $ oGstate{onScreen = (score, False, True), asteroids = [], enemies = [], bullets =[], ship = (shipDeath (elapsedTime gstate) (ship gstate))}  --Game Over when running out of lives
+                             | paused = return $ oGstate  --if paused this returns the original state that isn't updated
+                             | otherwise = return $ gstate
   where (score, paused, _) = (onScreen gstate)
         lives = getLives(ship gstate)
+
+newScore :: Int -> Int -> String 
+newScore hsc sc | hsc >= sc = show(hsc)     
+                | otherwise = show(sc)
 
 reloadState :: GameState -> IO GameState
 reloadState gstate | (isElement (Char 'r') (pressedKeys gstate)) = reload --press r to reload
