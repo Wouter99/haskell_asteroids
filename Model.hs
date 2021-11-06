@@ -34,7 +34,7 @@ data GameState = GameState{
 
 -- Auxiliary datatypes
 
-type Position = (Float, Float) --representeert het middelpunt van het object
+type Position = (Float, Float) -- represents the middle of an object
 
 type Speed = Float 
 
@@ -44,7 +44,7 @@ type Friendly = Bool
 
 type Direction = Float --measured in degrees. can be converted to radians with degRad. 
 
-data Version = Shoot | Follow
+data Version = Shoot | Follow | Target
 
 type Lives = Int
 
@@ -53,8 +53,6 @@ type Score = Int
 type Pause = Bool
 
 type GameOver = Bool
-
--- initalState willen we random, maar dan moet het een IO GameState worden. Is dat een probleem?
 
 -- Main datatypes
 data Ship = Ship Position Speed Direction Size Lives Explosion
@@ -87,18 +85,18 @@ class Collidable a where
   hitBox :: a -> HitBox
 
 instance Collidable Ship where
-  hitBox (Ship pos sp dir sz lives ex) = HitBox pos (Rect sz (sz/2))
+  hitBox (Ship p sp dir sz lives ex) = HitBox p (Rect sz (sz/2))
  
 instance Collidable Asteroid where
   hitBox (Asteroid p _ sz) = HitBox p (Circ sz)
 
 instance Collidable Enemy where 
-  hitBox (Enemy p _ Shoot) = HitBox p (Circ 20)   --later size aanpassen
-  hitBox (Enemy p _ Follow) = HitBox p (Circ 30)
+  hitBox (Enemy p _ Target) = HitBox p (Circ 20)
+  hitBox (Enemy p _ Shoot) = HitBox p (Circ 30)   
+  hitBox (Enemy p _ Follow) = HitBox p (Circ 40)
   
 instance Collidable Bullet where
-  hitBox (Bullet p _ _) = HitBox p (Circ 5) -- later aanpassen size
-
+  hitBox (Bullet p _ _) = HitBox p (Circ 5) 
 
 instance Movable Ship where
   move (Ship pos sp dir sz lives ex) = Ship (wrap(newPos sp pos dir)) sp dir sz lives ex  
@@ -123,26 +121,28 @@ wrap = transBack . wrap' . trans
 newPos :: Speed -> Position -> Direction -> Position
 newPos sp (x,y) dir = (x+sp*cos(degRad*dir), y+sp*sin(degRad*dir))
 
-sizeToSpeed :: Size -> Speed
+sizeToSpeed :: Size -> Speed  --sizes for the different asteroids
 sizeToSpeed 60 = 1
 sizeToSpeed 35 = 2.5
-sizeToSpeed 15 = 4 --later functie vinden die beter werkt
+sizeToSpeed 15 = 4 
 
 moveBack :: Ship -> Ship
 moveBack (Ship (x,y) sp dir sz lives ex) = Ship (wrap((x-sp*cos(degRad*dir), y-sp*sin(degRad*dir)))) sp dir sz lives ex
 
-moveEnemy :: Ship -> Enemy -> Enemy  --Aparte move functie voor de enemy omdat deze het extra argument schip nodig heeft om de nieuwe richting te bepalen
-moveEnemy _ (Enemy (x1,y1) dir Shoot)= Enemy (wrap(newPos 3 (x1,y1) dirRand)) dirRand Shoot --speed aanpassen
+moveEnemy :: Ship -> Enemy -> Enemy  -- some enemies need the argument ship to move so they are not an instance of movable. 
+moveEnemy (Ship posShip _ _ _ _ _) (Enemy posEn dir Follow) = Enemy (wrap(newPos 4 posEn (dirPlayer posEn posShip))) (dirPlayer posEn posShip) Follow 
+moveEnemy _ (Enemy (x,y) dir Target)= Enemy (wrap(newPos 3 (x,y) dirSemiRand)) dirSemiRand Target
   where
-    dirRand = dir+ 0.01*(fromIntegral((round(x1 + y1)) `rem` 51))
-moveEnemy (Ship (a,b) _ _ _ _ _) (Enemy (x2,y2) dir Follow) = Enemy (wrap(newPos 4 (x2,y2) dirPlayer)) dirPlayer Follow --speed aanpassen
-  where 
-    dirPlayer = ((atan2 (y2-b) (x2-a))*radDeg)+180 --atan2 calculates the angle between vector and x -axis, this is translated to degree in range 0 to 360. 
-
+    dirSemiRand = dir+ 0.01*(fromIntegral((round(x + y)) `rem` 51))  --semi random change in direction ever step calculated from the current position modulo a number.
+moveEnemy _ (Enemy (x,y) dir Shoot)= Enemy (wrap(newPos 3 (x,y) dirSemiRand)) dirSemiRand Shoot
+  where
+    dirSemiRand = dir - 0.04*(fromIntegral((round(x + y)) `rem` 51))  --semi random change in direction ever step calculated from the current position modulo a number.
 
 -----------------------
 --helper functions for handling user input in the controller
 -----------------------
+dirPlayer :: Position -> Position -> Direction
+dirPlayer (xEn,yEn) (xShip,yShip) = ((atan2 (yEn-yShip) (xEn-xShip))*radDeg)+180 --atan2 calculates the angle between vector and x -axis, this is translated to degree in range 0 to 360. 
 
 removeItem :: Eq a => a -> [a] -> [a]
 removeItem _ []                 = []
@@ -161,13 +161,18 @@ playerShoot :: Ship -> [Bullet] -> [Bullet]
 playerShoot (Ship pos sp dir sz lives ex) bs = (Bullet pos dir True):bs
 
 enemyShoot :: GameState -> Enemy -> [Bullet]
-enemyShoot gstate (Enemy (x,y) dir Shoot) | ((round(time*1000) `mod` 3000) == 0) = [Bullet (x,y) dirPlayer False]   --Enemies van type Shoot schieten elke 3 sec voor een duizendste van een seconde, wat neerkomt op 1 bullet. 
-                                          | otherwise = []                                  
+enemyShoot gstate (Enemy (x,y) dir Shoot)  | ((round(time*1000) `mod` 1000) == 0) = [Bullet (x,y) dirSemiRand False]  --every second shoot in a random direction
+                                           | otherwise = []
   where 
     time = (elapsedTime gstate)
-    (Ship (a,b) _ _ _ _ _) = (ship gstate)
-    dirPlayer = ((atan2 (y-b) (x-a))*radDeg)+180 --atan2 calculates the angle between vector and x -axis, this is translated to degree in range 0 to 360. 
-enemyShoot _ _ = []    --alle andere enemies schieten niet
+    dirSemiRand = (fromIntegral((round(x + y)) `rem` 361))
+enemyShoot gstate (Enemy posEn dir Target) | ((round(time*1000) `mod` 3000) == 0) = [Bullet posEn dirP False]   --Enemies of type Target, shoot a bullet every 3 seconds for a period of 1/1000 of a second. Such that it shoot a single bullet 
+                                           | otherwise = []                                                              
+  where 
+    time = (elapsedTime gstate)
+    (Ship posShip _ _ _ _ _) = (ship gstate)
+    dirP = dirPlayer posEn posShip
+enemyShoot _ _ = [] --other enemies don't shoot 
 ---------------------- 
 --helper functions for building a random GameState
 ----------------------
@@ -178,6 +183,7 @@ mkAsteroid (x,y,dir) = Asteroid (x,y) dir 60
 mkEnemy :: (Float,Float,Float,Int) -> Enemy --more versions can be added
 mkEnemy (x,y,dir,1) = Enemy (x,y) dir Follow
 mkEnemy (x,y,dir,2) = Enemy (x,y) dir Shoot
+mkEnemy (x,y,dir,3) = Enemy (x,y) dir Target
 
 buildInitial :: [Asteroid] -> [Enemy] -> GameState
 buildInitial as es = GameState {asteroids = as, ship = Ship (0,0) 8 90 50 3 None, bullets = [], enemies = es, elapsedTime = 0, pressedKeys = [], onScreen = (0,False, False)}
@@ -189,17 +195,12 @@ mkAsteroids n = do posAs <- createRandomPos n
                    randDirsAs <- createRandomDir n
                    return (map mkAsteroid (zip3 xAs yAs randDirsAs))
 
-{-                 randIntsAs <- createRandomInts n
-                   let randSizesAs = map (fromIntegral.(10*)) randIntsAs         
-                   createRandomInts :: Int -> IO [Int]
-                   createRandomInts n = (sequence $ replicate n $ randomRIO(1,3)) -}
-
 mkEnemies :: Int -> IO [Enemy]
 mkEnemies 0 = return []
 mkEnemies n = do posEn <-createRandomPos n 
                  let (xEn, yEn) = unzip posEn
                  randDirsEn <- createRandomDir n
-                 randVersEn <- sequence $ replicate n $ randomRIO(1,2) 
+                 randVersEn <- sequence $ replicate n $ randomRIO(1,3) 
                  return (map mkEnemy (zip4 xEn yEn randDirsEn randVersEn))
 
 createRandomPos :: Int ->  IO [Position]
@@ -209,7 +210,7 @@ randomPos :: IO Position
 randomPos = do edge <- randomRIO(1,4)
                posOnEdge edge
 
-posOnEdge :: Int -> IO Position -- 1 is noord, 2 is oost, 3 is zuid, 4 is west
+posOnEdge :: Int -> IO Position -- 1 is north, 2 is east, 3 is south, 4 is west
 posOnEdge 1 = do randx <- randomRIO((-fromIntegral(width))/2, (fromIntegral(width))/2) :: IO Float
                  return (randx,0.5*(fromIntegral(height)))
 posOnEdge 2 = do randy <- randomRIO((-fromIntegral(height))/2, (fromIntegral(height))/2) :: IO Float
@@ -220,11 +221,6 @@ posOnEdge 4 = do randy <- randomRIO((-fromIntegral(height))/2, (fromIntegral(hei
                  return (-0.5*fromIntegral(width), randy)
 posOnEdge _ = error "not an edge"
 
-{-
-    where createRandomPos n = do randxs <- sequence $ replicate n $ randomRIO((-width) `div` 2 , width `div` 2)
-                                 randys <- sequence $ replicate n $ randomRIO((-height) `div` 2, height `div` 2)
-                                 return (zip (map fromIntegral randxs) (map fromIntegral randys))
--}
 
 createRandomDir :: Int -> IO [Float]
 createRandomDir n = (sequence $ replicate n $ randomRIO(0, 360))
@@ -311,6 +307,7 @@ collide (HitBox (x2,y2) (Rect l b)) (HitBox (x1,y1) (Circ r1)) = distance < r1
         closeY = (clamp by ty y1)  --clamp the y coord of the circle between the y coordinates of the rectangle to obtain the y coordinate of the point on the rectangle that is closest to the circle
         distance = sqrt((x1 - closeX)^2 + (y1 - closeY)^2)  --distance between closest point of rectangle and circle.
 collide _ _ = False
+
 
 clamp :: (Ord a) => a -> a -> a -> a -- help function for our rectangle-circle collision
 clamp mn mx = max mn . min mx

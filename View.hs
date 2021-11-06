@@ -8,13 +8,13 @@ import Model
 view :: GameState -> IO Picture
 view = return . viewPure
 
-
 viewPure :: GameState -> Picture
-viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es, onScreen = info, elapsedTime = time}) = pictures [picAs as, picShip ship, picBs bs, picEs es, picInfo ship info, picExplosion time ship] where
+viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es, onScreen = info, elapsedTime = time}) = pictures [picAs as, picShip ship, picBs bs, picEs ship es, picInfo ship info, picExplosion time ship] where
+  
   picAs :: [Asteroid] -> Picture
   picAs as = pictures (map f as) where
     f :: Asteroid -> Picture
-    f (Asteroid (x,y) r sz) = translate x y (color white (rotate (-r) (circleSolid (sz)))) --afhankelijk van de grootte van het scherm. omdat translate werkt vanaf de originele positie van de picture en de picture begint in het midden van het scherm.
+    f (Asteroid (x,y) r sz) = translate x y (color white (rotate (-r) (circleSolid (sz)))) 
 
   picShip :: Ship -> Picture
   picShip (Ship (x,y) _ r sz _ _) = translate x y (color blue (rotate (-r) (rectangleSolid (sz) (0.5*sz))))
@@ -25,18 +25,22 @@ viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es, on
                                                                          | otherwise = Pictures [translate x y (color orange (circleSolid (1.6/(1000*duration)))), translate x y (color orange (circleSolid (1.2/(1000*duration)))), translate x y (color orange (circleSolid (0.8/(1000*duration))))]
     where duration = totalTime - creationTime
 
-
   picBs :: [Bullet] -> Picture 
   picBs bs = pictures (map f bs) where
     f :: Bullet -> Picture
     f (Bullet (x,y) _ True) = translate x y (color green (circleSolid 5))  
     f (Bullet (x,y) _ False) = translate x y (color red (circleSolid 5))
 
-  picEs :: [Enemy] -> Picture 
-  picEs es = pictures (map f es) where
-    f :: Enemy -> Picture
-    f (Enemy (x,y) r Shoot) = translate x y (color (light red) (rotate (-r) (circleSolid (20))))  --later correcte size kiezen
-    f (Enemy (x,y) r Follow) = translate x y (color (dark red) (rotate (-r) (circleSolid (30))))
+  picEs :: Ship -> [Enemy] -> Picture 
+  picEs ship es = pictures (map (f ship) es) where
+    f :: Ship -> Enemy -> Picture
+    f (Ship posShip _ _ _ _ _) (Enemy (x,y) r Target) = Pictures [translate x y (color orange (thickCircle 20 6)), translate x y (color orange (rotate (-dirP) (rectangleSolid (30) (5))))]
+      where dirP = dirPlayer (x,y) posShip
+    f _ (Enemy (x,y) r Shoot) = translate x y (color (light red) (rotate (-r) (circleSolid (30))))  
+    f _ (Enemy pos dir Follow) = Pictures [makeRect dir pos, makeRect (dir+45) pos, makeRect (dir+90) pos, makeRect (dir+135) pos]  --is depicted as a bunch of rotated rectangles such that is also has a circular hitbox
+ 
+  makeRect :: Direction -> Position -> Picture
+  makeRect dir (x,y) = translate x y (color (dark red) (rotate (-dir) (rectangleSolid (80) (15))))
 
   picInfo :: Ship -> (Score, Pause, GameOver) -> Picture
   picInfo _ (score,_,True) = Pictures [translate (-0.49*(fromIntegral(width))) 0 (scale 1.5 1.5 (color (white) (text "GAME OVER"))), translate (-0.42*(fromIntegral(width))) (-200) (scale 0.5 0.5 (color (white) (text "press R to restart"))), translate (-0.42*(fromIntegral(width))) (-300) (scale 0.5 0.5 (color (white) (text ("You scored "++(show(score))++" points" ))))]

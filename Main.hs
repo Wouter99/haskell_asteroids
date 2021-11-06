@@ -9,8 +9,7 @@ import Graphics.Gloss.Interface.IO.Game
 
 main :: IO ()
 
-main = do writeFile "highscore.txt" "0"
-          asteroids <- mkAsteroids 7
+main = do asteroids <- mkAsteroids 7
           enemies <- mkEnemies 4
           playIO (InWindow "Asteroids" (width, height) (0, 0)) -- Or FullScreen
                 black            -- Background color
@@ -40,5 +39,5 @@ Reads and interprets data from the file system, such as high scores or levels, u
 ---manier vinden om niet elke step de score te printen WOUTER
 ---view highscore WOUTER
 ---tweaken spel WOUTER
---- extra enemies FEDOR
---- alle comments in engels FEDOR
+---design doc updaten WOUTER
+-}
