@@ -136,7 +136,7 @@ moveEnemy _ (Enemy (x,y) dir Target)= Enemy (wrap(newPos 3 (x,y) dirSemiRand)) d
     dirSemiRand = dir+ 0.01*(fromIntegral((round(x + y)) `rem` 51))  --semi random change in direction ever step calculated from the current position modulo a number.
 moveEnemy _ (Enemy (x,y) dir Shoot)= Enemy (wrap(newPos 3 (x,y) dirSemiRand)) dirSemiRand Shoot
   where
-    dirSemiRand = dir - 0.04*(fromIntegral((round(x + y)) `rem` 51))  --semi random change in direction ever step calculated from the current position modulo a number.
+    dirSemiRand = dir - 0.05*(fromIntegral((round(x + y)^2) `rem` 51))  --semi random change in direction ever step calculated from the current position modulo a number.
 
 -----------------------
 --helper functions for handling user input in the controller
@@ -161,11 +161,11 @@ playerShoot :: Ship -> [Bullet] -> [Bullet]
 playerShoot (Ship pos sp dir sz lives ex) bs = (Bullet pos dir True):bs
 
 enemyShoot :: GameState -> Enemy -> [Bullet]
-enemyShoot gstate (Enemy (x,y) dir Shoot)  | ((round(time*1000) `mod` 1000) == 0) = [Bullet (x,y) dirSemiRand False]  --every second shoot in a random direction
+enemyShoot gstate (Enemy (x,y) dir Shoot)  | ((round(time*500) `mod` 1000) == 0) = [Bullet (x,y) dirSemiRand False]  --every half second shoot in a random direction
                                            | otherwise = []
   where 
     time = (elapsedTime gstate)
-    dirSemiRand = (fromIntegral((round(x + y)) `rem` 361))
+    dirSemiRand = (fromIntegral((round(x + y)^2) `rem` 361))
 enemyShoot gstate (Enemy posEn dir Target) | ((round(time*1000) `mod` 3000) == 0) = [Bullet posEn dirP False]   --Enemies of type Target, shoot a bullet every 3 seconds for a period of 1/1000 of a second. Such that it shoot a single bullet 
                                            | otherwise = []                                                              
   where 
@@ -243,10 +243,11 @@ moveAll gstate = gstate {bullets = map move (bullets gstate), asteroids = map mo
 handleCollisions :: GameState -> GameState 
 handleCollisions (GameState as ship bs es time keys (sc,pause,gameover)) = GameState as'' ship''' bs' es'' time keys (sc',pause,gameover)   
   where      
-    (as', ship', bs', es', sc') = bulletCheckers as ship bs es sc time   --time is needed for keeping track of the time an explosion is initiated
+    (as', ship', bs', es', sc') = bulletCheckers as ship bs es sc time   --time is needed for keeping track of the time an explosion is initiated.
     (as'', ship'') = asteroidChecker as' ship' time
     (es'', ship''') = enemyChecker es' ship'' time     
 
+--This function computes the updated ship, score, list of asteroids, bullets and enemies after a collision with a bullet. 
 bulletCheckers :: [Asteroid] -> Ship -> [Bullet] -> [Enemy] -> Score -> Float -> ([Asteroid], Ship, [Bullet], [Enemy], Score)
 bulletCheckers as ship bs es sc time = (as', ship', bs''', es',sc'')
   where (as', bs',sc') = bulletChecker as bs sc

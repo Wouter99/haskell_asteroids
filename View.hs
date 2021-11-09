@@ -10,7 +10,6 @@ view = return . viewPure
 
 viewPure :: GameState -> Picture
 viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es, onScreen = info, elapsedTime = time}) = pictures [picAs as, picShip ship, picBs bs, picEs ship es, picInfo ship info, picExplosion time ship] where
-  
   picAs :: [Asteroid] -> Picture
   picAs as = pictures (map f as) where
     f :: Asteroid -> Picture
@@ -34,7 +33,7 @@ viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es, on
   picEs :: Ship -> [Enemy] -> Picture 
   picEs ship es = pictures (map (f ship) es) where
     f :: Ship -> Enemy -> Picture
-    f (Ship posShip _ _ _ _ _) (Enemy (x,y) r Target) = Pictures [translate x y (color orange (thickCircle 20 6)), translate x y (color orange (rotate (-dirP) (rectangleSolid (30) (5))))]
+    f (Ship posShip _ _ _ _ _) (Enemy (x,y) r Target) = Pictures [translate x y (color orange (thickCircle 20 6)), translate x y (color orange (rotate (-dirP) (rectangleSolid (45) (10))))]
       where dirP = dirPlayer (x,y) posShip
     f _ (Enemy (x,y) r Shoot) = translate x y (color (light red) (rotate (-r) (circleSolid (30))))  
     f _ (Enemy pos dir Follow) = Pictures [makeRect dir pos, makeRect (dir+45) pos, makeRect (dir+90) pos, makeRect (dir+135) pos]  --is depicted as a bunch of rotated rectangles such that is also has a circular hitbox
