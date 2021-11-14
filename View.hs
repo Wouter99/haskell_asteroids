@@ -41,7 +41,7 @@ viewPure (GameState {asteroids = as, ship = ship, bullets = bs, enemies = es, on
   makeRect :: Direction -> Position -> Picture
   makeRect dir (x,y) = translate x y (color (dark red) (rotate (-dir) (rectangleSolid (80) (15))))
 
-  picInfo :: Ship -> (Score, Pause, GameOver) -> Picture
-  picInfo _ (score,_,True) = Pictures [translate (-0.49*(fromIntegral(width))) 0 (scale 1.5 1.5 (color (white) (text "GAME OVER"))), translate (-0.42*(fromIntegral(width))) (-200) (scale 0.5 0.5 (color (white) (text "press R to restart"))), translate (-0.42*(fromIntegral(width))) (-300) (scale 0.5 0.5 (color (white) (text ("You scored "++(show(score))++" points" ))))]
-  picInfo _ (_,True,_) = translate (-0.42*(fromIntegral(width))) 0 (scale 2 2 (color (white) (text "PAUSED")))
-  picInfo (Ship _ _ _ _ lives _) (score, False,_) = Pictures [translate (-0.5*(fromIntegral(width))+20) (0.5*(fromIntegral(height))-50) (scale 0.4 0.4 (color (white) (text ("Score: "++(show score))))), translate (-0.5*(fromIntegral(width))+20) (0.5*(fromIntegral(height))-100) (scale 0.4 0.4 (color (white) (text ("Lives: "++(show lives)))))]
+  picInfo :: Ship -> (Score, Pause, GameOver, Highscore) -> Picture
+  picInfo _ (score,_,True,highscore) = Pictures [translate (-0.49*(fromIntegral(width))) 0 (scale 1.5 1.5 (color (white) (text "GAME OVER"))), translate (-0.42*(fromIntegral(width))) (-150) (scale 0.5 0.5 (color (white) (text "press R to restart"))), translate (-0.42*(fromIntegral(width))) (-275) (scale 0.5 0.5 (color (white) (text ("You scored "++(show(score))++" points" )))), translate (-0.42*(fromIntegral(width))) (-350) (scale 0.5 0.5 (color (white) (text ("Current highscore: "++(show(highscore))++" points" ))))]
+  picInfo _ (_,True,_,_) = translate (-0.42*(fromIntegral(width))) 0 (scale 2 2 (color (white) (text "PAUSED")))
+  picInfo (Ship _ _ _ _ lives _) (score, False,_,_) = Pictures [translate (-0.5*(fromIntegral(width))+20) (0.5*(fromIntegral(height))-50) (scale 0.4 0.4 (color (white) (text ("Score: "++(show score))))), translate (-0.5*(fromIntegral(width))+20) (0.5*(fromIntegral(height))-100) (scale 0.4 0.4 (color (white) (text ("Lives: "++(show lives)))))]

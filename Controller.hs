@@ -19,10 +19,10 @@ pauseGameOver oGstate gstate | (lives == 0) = do hsc <- readFile "highscore.txt"
                                                  putStrLn hsc
                                                  let highscore = read hsc
                                                  writeFile "highscore.txt" (newScore highscore score)
-                                                 return $ oGstate{onScreen = (score, False, True), asteroids = [], enemies = [], bullets =[], ship = (shipDeath (elapsedTime gstate) (ship gstate))}  --Game Over when running out of lives
+                                                 return $ oGstate{onScreen = (score, False, True, read(hsc)), asteroids = [], enemies = [], bullets =[], ship = (shipDeath (elapsedTime gstate) (ship gstate))}  --Game Over when running out of lives
                              | paused = return $ oGstate  --if paused this returns the original state that isn't updated
                              | otherwise = return $ gstate
-  where (score, paused, _) = (onScreen gstate)
+  where (score, paused, _, _) = (onScreen gstate)
         lives = getLives(ship gstate)
 
 newScore :: Int -> Int -> String 
@@ -30,7 +30,7 @@ newScore hsc sc | hsc >= sc = show(hsc)
                 | otherwise = show(sc)
 
 reloadState :: GameState -> IO GameState
-reloadState gstate | (isElement (Char 'r') (pressedKeys gstate)) = reload --press r to reload
+reloadState gstate | (isElement (Char 'r') (pressedKeys gstate)) = reload --press r to reload the game
                    | otherwise = return $ gstate
                    
 moveShip :: GameState -> GameState
@@ -47,12 +47,13 @@ moveShip gstate | (isElement (Char 'w') (pressedKeys gstate) && isElement (Char 
 updateState :: Float -> GameState -> GameState 
 updateState secs gstate = update gstate{elapsedTime = (elapsedTime gstate) + secs} 
           
-randomSpawner :: Float -> GameState -> IO GameState
-randomSpawner time gstate | time < 30 = spawnWithChance 1.003 1.0003 gstate
-                          | time < 90 = spawnWithChance 1.01 1.003 gstate
-                          | time < 120 = spawnWithChance 1.02 1.008 gstate
-                          | time < 200 = spawnWithChance 1.03 1.01 gstate
-                          | time < 300 = spawnWithChance 1.03 1.02 gstate
+randomSpawner :: Float -> GameState -> IO GameState -- these values were tested and were considered OK. they could be change very easily.
+randomSpawner time gstate | time < 10 = spawnWithChance 1.003 1.0003 gstate 
+                          | time < 30 = spawnWithChance 1.005 1.005 gstate 
+                          | time < 50 = spawnWithChance 1.007 1.006 gstate 
+                          | time < 80 = spawnWithChance 1.009 1.008 gstate 
+                          | time < 120 = spawnWithChance 1.009 1.009 gstate
+                          | otherwise = spawnWithChance 1.01 1.01 gstate
 
 --p1 and p2 are numbers a tiny bit larger than 1, such that if the random number drawn between 0 and p1/p2 is larger than 1,
 --it makes one asteroid/enemy, otherwise it makes 0 asteroids/enemies this step
@@ -66,8 +67,8 @@ spawnWithChance p1 p2 gstate = do f1 <- randomRIO(0,p1) :: IO Float
                                   return gstate {asteroids = ((asteroids gstate)++as), enemies = ((enemies gstate)++es)}                        
 
 reload :: IO GameState
-reload = do asteroids <- mkAsteroids 6
-            enemies <- mkEnemies 2
+reload = do asteroids <- mkAsteroids 7
+            enemies <- mkEnemies 1
             return (buildInitial asteroids enemies)
 
 -- | Handle user input
@@ -77,8 +78,8 @@ input ev gstate = return (inputKey ev gstate)
 
 inputKey :: Event -> GameState -> GameState
 inputKey (EventKey (SpecialKey KeySpace) Down _ _) gstate = gstate {bullets = playerShoot (ship gstate) (bullets gstate)} 
-inputKey (EventKey (Char 'p') Down _ _) gstate = gstate {onScreen = (score, not(pause), gameover)}
-  where (score, pause, gameover) = (onScreen gstate)
+inputKey (EventKey (Char 'p') Down _ _) gstate = gstate {onScreen = (score, not(pause), gameover, score)}
+  where (score, pause, gameover, highscore) = (onScreen gstate)
 inputKey (EventKey k Down _ _) gstate = gstate {pressedKeys = k:(pressedKeys gstate)}
 inputKey (EventKey k Up _ _) gstate = gstate {pressedKeys = (removeItem k (pressedKeys gstate))}
 inputKey _ gstate = gstate 

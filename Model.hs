@@ -29,7 +29,7 @@ data GameState = GameState{
                            enemies :: [Enemy],
                            elapsedTime :: Float,
                            pressedKeys :: [Key],
-                           onScreen :: (Score, Pause, GameOver)
+                           onScreen :: (Score, Pause, GameOver, Highscore)
                           } 
 
 -- Auxiliary datatypes
@@ -38,13 +38,13 @@ type Position = (Float, Float) -- represents the middle of an object
 
 type Speed = Float 
 
-type Size = Float  -- 10, 20 of 30
+type Size = Float   --sizes are 15, 35 or 60. 
 
 type Friendly = Bool
 
 type Direction = Float --measured in degrees. can be converted to radians with degRad. 
 
-data Version = Shoot | Follow | Target
+data Version = Shoot | Follow | Target -- an enemy can be of version shoot (not targeted), follow (which follows the player), and target (which shoots at the player)
 
 type Lives = Int
 
@@ -53,6 +53,8 @@ type Score = Int
 type Pause = Bool
 
 type GameOver = Bool
+
+type Highscore = Int
 
 -- Main datatypes
 data Ship = Ship Position Speed Direction Size Lives Explosion
@@ -186,7 +188,7 @@ mkEnemy (x,y,dir,2) = Enemy (x,y) dir Shoot
 mkEnemy (x,y,dir,3) = Enemy (x,y) dir Target
 
 buildInitial :: [Asteroid] -> [Enemy] -> GameState
-buildInitial as es = GameState {asteroids = as, ship = Ship (0,0) 8 90 50 3 None, bullets = [], enemies = es, elapsedTime = 0, pressedKeys = [], onScreen = (0,False, False)}
+buildInitial as es = GameState {asteroids = as, ship = Ship (0,0) 8 90 50 3 None, bullets = [], enemies = es, elapsedTime = 0, pressedKeys = [], onScreen = (0,False, False,0)}
 
 mkAsteroids :: Int -> IO [Asteroid]
 mkAsteroids 0 = return []
@@ -241,7 +243,7 @@ moveAll :: GameState -> GameState
 moveAll gstate = gstate {bullets = map move (bullets gstate), asteroids = map move (asteroids gstate), enemies = map (moveEnemy (ship gstate)) (enemies gstate)}
     
 handleCollisions :: GameState -> GameState 
-handleCollisions (GameState as ship bs es time keys (sc,pause,gameover)) = GameState as'' ship''' bs' es'' time keys (sc',pause,gameover)   
+handleCollisions (GameState as ship bs es time keys (sc,pause,gameover,hsc)) = GameState as'' ship''' bs' es'' time keys (sc',pause,gameover,hsc)   
   where      
     (as', ship', bs', es', sc') = bulletCheckers as ship bs es sc time   --time is needed for keeping track of the time an explosion is initiated.
     (as'', ship'') = asteroidChecker as' ship' time
@@ -308,7 +310,6 @@ collide (HitBox (x2,y2) (Rect l b)) (HitBox (x1,y1) (Circ r1)) = distance < r1
         closeY = (clamp by ty y1)  --clamp the y coord of the circle between the y coordinates of the rectangle to obtain the y coordinate of the point on the rectangle that is closest to the circle
         distance = sqrt((x1 - closeX)^2 + (y1 - closeY)^2)  --distance between closest point of rectangle and circle.
 collide _ _ = False
-
 
 clamp :: (Ord a) => a -> a -> a -> a -- help function for our rectangle-circle collision
 clamp mn mx = max mn . min mx
