@@ -1,3 +1,5 @@
+-- Made by Wouter van den Berg and Fedor Taggenbrock 
+
 module Main where
 
 import Controller

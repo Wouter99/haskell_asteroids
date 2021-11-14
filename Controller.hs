@@ -14,9 +14,9 @@ step secs gstate = do gstate' <- reloadState gstate
                       gstate''<- randomSpawner (elapsedTime gstate) $ moveShip $ updateState secs gstate'
                       pauseGameOver gstate gstate''
                       
-pauseGameOver :: GameState -> GameState -> IO GameState
+pauseGameOver :: GameState -> GameState -> IO GameState  
 pauseGameOver oGstate gstate | (lives == 0) = do hsc <- readFile "highscore.txt"       --Game over if lives = 0, updates the highscore file and returns the original gamestate without any objects in it. 
-                                                 putStrLn hsc
+                                                 putStrLn hsc -- we do this because we had an issue regarding reading a file, and not using it, before writing. so we came with this fix.
                                                  let highscore = read hsc
                                                  writeFile "highscore.txt" (newScore highscore score)
                                                  return $ oGstate{onScreen = (score, False, True, read(hsc)), asteroids = [], enemies = [], bullets =[], ship = (shipDeath (elapsedTime gstate) (ship gstate))}  --Game Over when running out of lives
@@ -25,7 +25,7 @@ pauseGameOver oGstate gstate | (lives == 0) = do hsc <- readFile "highscore.txt"
   where (score, paused, _, _) = (onScreen gstate)
         lives = getLives(ship gstate)
 
-newScore :: Int -> Int -> String 
+newScore :: Int -> Int -> String -- checks if the current score is a highscore
 newScore hsc sc | hsc >= sc = show(hsc)     
                 | otherwise = show(sc)
 
@@ -33,7 +33,7 @@ reloadState :: GameState -> IO GameState
 reloadState gstate | (isElement (Char 'r') (pressedKeys gstate)) = reload --press r to reload the game
                    | otherwise = return $ gstate
                    
-moveShip :: GameState -> GameState
+moveShip :: GameState -> GameState -- handles all key combinations for moving the ship
 moveShip gstate | (isElement (Char 'w') (pressedKeys gstate) && isElement (Char 'a') (pressedKeys gstate)) = gstate {ship = move(rotateShip (ship gstate) 8)}  
                 | (isElement (Char 'w') (pressedKeys gstate) && isElement (Char 'd') (pressedKeys gstate)) = gstate {ship = move(rotateShip (ship gstate) (-8))}  
                 | isElement (Char 'w') (pressedKeys gstate) = gstate {ship = move(ship gstate)}
@@ -66,7 +66,7 @@ spawnWithChance p1 p2 gstate = do f1 <- randomRIO(0,p1) :: IO Float
                                   es <- mkEnemies n2  
                                   return gstate {asteroids = ((asteroids gstate)++as), enemies = ((enemies gstate)++es)}                        
 
-reload :: IO GameState
+reload :: IO GameState --resets the game
 reload = do asteroids <- mkAsteroids 7
             enemies <- mkEnemies 1
             return (buildInitial asteroids enemies)
@@ -75,8 +75,8 @@ reload = do asteroids <- mkAsteroids 7
 input :: Event -> GameState -> IO GameState
 input ev gstate = return (inputKey ev gstate)
 
-
-inputKey :: Event -> GameState -> GameState
+--handles the input keys from the user. Pattern matches on spacebar and p for shooting and pausing. Any other keys are added to the pressedKeys list and the effects of those are handled in the step function.
+inputKey :: Event -> GameState -> GameState 
 inputKey (EventKey (SpecialKey KeySpace) Down _ _) gstate = gstate {bullets = playerShoot (ship gstate) (bullets gstate)} 
 inputKey (EventKey (Char 'p') Down _ _) gstate = gstate {onScreen = (score, not(pause), gameover, score)}
   where (score, pause, gameover, highscore) = (onScreen gstate)

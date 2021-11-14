@@ -74,8 +74,10 @@ data Explosion = Explosion Position Float | None --Float is time of creation
 class Destroyable a where
   destroy :: a -> [a]
 
-instance Destroyable Asteroid where
-  destroy = destroyAs
+instance Destroyable Asteroid where 
+  destroy (Asteroid pos dir 15) = []
+  destroy (Asteroid pos dir 35) = [(Asteroid pos (dir+40) 15), (Asteroid pos (dir-40) 15)]
+  destroy (Asteroid pos dir 60) = [(Asteroid pos (dir+40) 35), (Asteroid pos (dir-40) 35)]
 
 instance Destroyable Enemy where
   destroy _ = []
@@ -120,15 +122,15 @@ wrap = transBack . wrap' . trans
     trans (x,y) = (x+ (fromIntegral(width)/2) , y + (fromIntegral(height)/2))
     transBack (x,y) = (x- (fromIntegral(width)/2) , y - (fromIntegral(height)/2))
 
-newPos :: Speed -> Position -> Direction -> Position
+newPos :: Speed -> Position -> Direction -> Position -- calculates the next position using the current speed, location and direction (along with the degRad en radDeg constants).
 newPos sp (x,y) dir = (x+sp*cos(degRad*dir), y+sp*sin(degRad*dir))
 
-sizeToSpeed :: Size -> Speed  --sizes for the different asteroids
+sizeToSpeed :: Size -> Speed  --sizes for the different asteroids determine the speed of the asteroid. 
 sizeToSpeed 60 = 1
 sizeToSpeed 35 = 2.5
 sizeToSpeed 15 = 4 
 
-moveBack :: Ship -> Ship
+moveBack :: Ship -> Ship 
 moveBack (Ship (x,y) sp dir sz lives ex) = Ship (wrap((x-sp*cos(degRad*dir), y-sp*sin(degRad*dir)))) sp dir sz lives ex
 
 moveEnemy :: Ship -> Enemy -> Enemy  -- some enemies need the argument ship to move so they are not an instance of movable. 
@@ -138,7 +140,7 @@ moveEnemy _ (Enemy (x,y) dir Target)= Enemy (wrap(newPos 3 (x,y) dirSemiRand)) d
     dirSemiRand = dir+ 0.01*(fromIntegral((round(x + y)) `rem` 51))  --semi random change in direction ever step calculated from the current position modulo a number.
 moveEnemy _ (Enemy (x,y) dir Shoot)= Enemy (wrap(newPos 3 (x,y) dirSemiRand)) dirSemiRand Shoot
   where
-    dirSemiRand = dir - 0.05*(fromIntegral((round(x + y)^2) `rem` 51))  --semi random change in direction ever step calculated from the current position modulo a number.
+    dirSemiRand = dir - 0.05*(fromIntegral((round(x + y)^2) `rem` 51)) 
 
 -----------------------
 --helper functions for handling user input in the controller
@@ -146,12 +148,12 @@ moveEnemy _ (Enemy (x,y) dir Shoot)= Enemy (wrap(newPos 3 (x,y) dirSemiRand)) di
 dirPlayer :: Position -> Position -> Direction
 dirPlayer (xEn,yEn) (xShip,yShip) = ((atan2 (yEn-yShip) (xEn-xShip))*radDeg)+180 --atan2 calculates the angle between vector and x -axis, this is translated to degree in range 0 to 360. 
 
-removeItem :: Eq a => a -> [a] -> [a]
+removeItem :: Eq a => a -> [a] -> [a]  --helper function for keeping track of all the pressedKeys
 removeItem _ []                 = []
 removeItem x (y:ys) | x == y    = removeItem x ys
                     | otherwise = y : removeItem x ys
 
-isElement :: Eq a => a -> [a] -> Bool
+isElement :: Eq a => a -> [a] -> Bool  --helper function for keeping track of all the pressedKeys
 isElement a [] = False
 isElement a (x:xs) | a == x = True   
                    | otherwise = isElement a xs
@@ -175,6 +177,8 @@ enemyShoot gstate (Enemy posEn dir Target) | ((round(time*1000) `mod` 3000) == 0
     (Ship posShip _ _ _ _ _) = (ship gstate)
     dirP = dirPlayer posEn posShip
 enemyShoot _ _ = [] --other enemies don't shoot 
+
+
 ---------------------- 
 --helper functions for building a random GameState
 ----------------------
@@ -182,7 +186,7 @@ enemyShoot _ _ = [] --other enemies don't shoot
 mkAsteroid :: (Float,Float,Float) -> Asteroid
 mkAsteroid (x,y,dir) = Asteroid (x,y) dir 60
 
-mkEnemy :: (Float,Float,Float,Int) -> Enemy --more versions can be added
+mkEnemy :: (Float,Float,Float,Int) -> Enemy 
 mkEnemy (x,y,dir,1) = Enemy (x,y) dir Follow
 mkEnemy (x,y,dir,2) = Enemy (x,y) dir Shoot
 mkEnemy (x,y,dir,3) = Enemy (x,y) dir Target
@@ -190,12 +194,12 @@ mkEnemy (x,y,dir,3) = Enemy (x,y) dir Target
 buildInitial :: [Asteroid] -> [Enemy] -> GameState
 buildInitial as es = GameState {asteroids = as, ship = Ship (0,0) 8 90 50 3 None, bullets = [], enemies = es, elapsedTime = 0, pressedKeys = [], onScreen = (0,False, False,0)}
 
-mkAsteroids :: Int -> IO [Asteroid]
+mkAsteroids :: Int -> IO [Asteroid] 
 mkAsteroids 0 = return []
 mkAsteroids n = do posAs <- createRandomPos n     
                    let (xAs,yAs) = unzip posAs
                    randDirsAs <- createRandomDir n
-                   return (map mkAsteroid (zip3 xAs yAs randDirsAs))
+                   return (map mkAsteroid (zip3 xAs yAs randDirsAs))  --uses a zip to convert the randomly generated values into a tuple which mkAsteroid can turn into an asteorid.
 
 mkEnemies :: Int -> IO [Enemy]
 mkEnemies 0 = return []
@@ -231,69 +235,63 @@ createRandomDir n = (sequence $ replicate n $ randomRIO(0, 360))
 --------------------------------
 --Functions to update the gamestate
 --------------------------------
-update :: GameState -> GameState
+update :: GameState -> GameState   --The higher order function which gets called in the step function of the controller to update the gamestate every step (excluding user input). 
 update gstate = handleCollisions $ moveAll $ shootAll gstate
 
 shootAll :: GameState -> GameState
-shootAll gstate = gstate {bullets = ((bullets gstate) ++ concatMap f (enemies gstate))}
+shootAll gstate = gstate {bullets = ((bullets gstate) ++ concatMap f (enemies gstate))} --All enemies that shoot create a list of bullets which get added to the list of bullets from the gstate.
   where f :: Enemy -> [Bullet]
         f = enemyShoot gstate
 
-moveAll :: GameState -> GameState
+moveAll :: GameState -> GameState --Calls move on all elements of every list of moveables. 
 moveAll gstate = gstate {bullets = map move (bullets gstate), asteroids = map move (asteroids gstate), enemies = map (moveEnemy (ship gstate)) (enemies gstate)}
     
-handleCollisions :: GameState -> GameState 
+handleCollisions :: GameState -> GameState --Calls three helper functions to handle all possible collisions
 handleCollisions (GameState as ship bs es time keys (sc,pause,gameover,hsc)) = GameState as'' ship''' bs' es'' time keys (sc',pause,gameover,hsc)   
   where      
     (as', ship', bs', es', sc') = bulletCheckers as ship bs es sc time   --time is needed for keeping track of the time an explosion is initiated.
-    (as'', ship'') = asteroidChecker as' ship' time
-    (es'', ship''') = enemyChecker es' ship'' time     
+    (as'', ship'') = shipChecker as' ship' time --handles the asteroids
+    (es'', ship''') = shipChecker es' ship'' time  --handles the enemies
 
---This function computes the updated ship, score, list of asteroids, bullets and enemies after a collision with a bullet. 
+--This function computes the updated ship, score, asteroids and enemies after collisons with one of the bullets. ALso the bullets get destroyed after a collison
 bulletCheckers :: [Asteroid] -> Ship -> [Bullet] -> [Enemy] -> Score -> Float -> ([Asteroid], Ship, [Bullet], [Enemy], Score)
 bulletCheckers as ship bs es sc time = (as', ship', bs''', es',sc'')
   where (as', bs',sc') = bulletChecker as bs sc
         (es', bs'',sc'') = bulletChecker es bs' sc'
         (ship', bs''') = bulletShipChecker ship bs'' time
 
-bulletChecker :: (Destroyable a, Collidable a) => [a] -> [Bullet] -> Score -> ([a], [Bullet], Score)   --For all the enemies and asteroids it checks if they collide with any of the bullets
+--For all the enemies and asteroids it checks if they collide with any of the bullets
+bulletChecker :: (Destroyable a, Collidable a) => [a] -> [Bullet] -> Score -> ([a], [Bullet], Score) 
 bulletChecker [] bs sc = ([], bs, sc)
 bulletChecker (x:xs) bs sc= ((xs'++xs''), bs'',sc'')
   where (xs', bs', sc') = bulletChecker' x bs sc            --check if first destroyable collides with any of the bullets.
         (xs'', bs'',sc'') = bulletChecker xs bs' sc'        -- recursively check the rest.
 
-bulletChecker' :: (Destroyable a, Collidable a) => a -> [Bullet] -> Score -> ([a], [Bullet], Score)  --checks if bullets collide with asteroids or enemies
---Als bullets leeg zijn dan klaar
+--For all the enemies and asteroids it checks if they collide with A SINGLE bullet.
+bulletChecker' :: (Destroyable a, Collidable a) => a -> [Bullet] -> Score -> ([a], [Bullet], Score)  
 bulletChecker' x [] sc= ([x], [], sc)  
 bulletChecker' x (b@(Bullet _ _ True):bs) sc | collision x b = (destroy(x), bs,sc+1)
                                              | otherwise = let (xs', bs',sc') = (bulletChecker' x bs sc) in (xs', (b:bs'), sc')
 bulletChecker' x (b@(Bullet _ _ False):bs) sc = let (xs', bs', sc') = (bulletChecker' x bs sc) in (xs', (b:bs'), sc')
 
+--Checks if the ship collides with any of the bullets and calls shipDeath if needed.
 bulletShipChecker :: Ship -> [Bullet] -> Float -> (Ship, [Bullet])
 bulletShipChecker ship [] _ = (ship, [])
 bulletShipChecker ship (b@(Bullet _ _ False):bs) time | collision ship b = ((shipDeath time ship), bs) 
                                                       | otherwise = let (ship', bs') = (bulletShipChecker ship bs time) in (ship', b:bs')
 bulletShipChecker ship (b@(Bullet _ _ True):bs) time = let (ship', bs') = (bulletShipChecker ship bs time) in (ship', b:bs')
 
+--checks if asteroids or enemies collides with the ship
+shipChecker :: (Destroyable a, Collidable a) => [a] -> Ship -> Float -> ([a],Ship)
+shipChecker [] ship _ = ([], ship)
+shipChecker (x:xs) ship time | collision ship x = ((destroy(x)++xs), (shipDeath time ship)) 
+                                 | otherwise = let (xs', ship') = (shipChecker xs ship time) in ((x:xs'),ship')                                   
 
-asteroidChecker :: [Asteroid] -> Ship -> Float-> ([Asteroid], Ship)
-asteroidChecker [] ship _ = ([], ship)
-asteroidChecker (a:as) ship time | collision ship a = ((destroyAs(a)++as), (shipDeath time ship)) 
-                                 | otherwise = let (as', ship') = (asteroidChecker as ship time) in ((a:as'),ship')                      
-
-enemyChecker :: [Enemy] -> Ship -> Float -> ([Enemy], Ship)
-enemyChecker [] ship _ = ([], ship)
-enemyChecker (e:es) ship time | collision ship e = (es, (shipDeath time ship))   
-                              | otherwise = let (es', ship') = (enemyChecker es ship time) in ((e:es'), ship')                
-
-shipDeath :: Float -> Ship -> Ship
-shipDeath _ (Ship pos sp dir sz 0 ex) = Ship (10000,0) sp dir sz 0 None  --game over, ship just needs to be invisible 
+-- handles the death of a ship
+shipDeath :: Float -> Ship -> Ship 
+shipDeath _ (Ship pos sp dir sz 0 ex) = Ship (10000,0) sp dir sz 0 None  --game over, ship just needs to be invisible so we move it far away
 shipDeath time (Ship pos sp dir sz lv ex) = Ship (0,0) sp dir sz (lv-1) (Explosion pos time) 
 
-destroyAs :: Asteroid -> [Asteroid]
-destroyAs (Asteroid pos dir 15) = []
-destroyAs (Asteroid pos dir 35) = [(Asteroid pos (dir+40) 15), (Asteroid pos (dir-40) 15)]
-destroyAs (Asteroid pos dir 60) = [(Asteroid pos (dir+40) 35), (Asteroid pos (dir-40) 35)]
 
 collision :: (Collidable a, Collidable b) => a -> b -> Bool 
 collision a b = collide (hitBox(a)) (hitBox(b))
@@ -314,7 +312,7 @@ collide _ _ = False
 clamp :: (Ord a) => a -> a -> a -> a -- help function for our rectangle-circle collision
 clamp mn mx = max mn . min mx
 
-getLives :: Ship -> Lives
+getLives :: Ship -> Lives -- function that gets the current lives of the ship
 getLives (Ship _ _ _ _ lives _) = lives
 
 
